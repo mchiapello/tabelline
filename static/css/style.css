@@ -1,6 +1,8 @@
 :root {
   --primary: #4f46e5;
   --primary-light: #818cf8;
+  --add: #0d9488;
+  --add-light: #5eead4;
   --success: #22c55e;
   --danger: #ef4444;
   --warning: #f59e0b;
@@ -28,7 +30,8 @@ body {
   padding: 0 24px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
+  flex-wrap: wrap;
   box-shadow: 0 2px 8px rgba(79,70,229,0.3);
 }
 
@@ -37,24 +40,50 @@ body {
   font-size: 1.5rem;
   font-weight: 800;
   padding: 16px 0;
-  margin-right: 16px;
+  margin-right: 12px;
   letter-spacing: -0.5px;
+}
+
+.nav-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 6px;
+  border-right: 1px solid rgba(255,255,255,0.2);
+  margin-right: 4px;
+}
+
+.nav-group:last-of-type { border-right: none; }
+
+.nav-group-label {
+  color: rgba(255,255,255,0.5);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding-right: 4px;
 }
 
 .nav-btn {
   background: none;
   border: 2px solid transparent;
   color: rgba(255,255,255,0.75);
-  padding: 8px 20px;
+  padding: 7px 14px;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 600;
   transition: all 0.15s;
 }
 
 .nav-btn:hover { color: white; background: rgba(255,255,255,0.1); }
 .nav-btn.active { color: white; border-color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.15); }
+
+/* Accento teal per pulsanti addizioni attivi */
+.nav-group.add .nav-btn.active {
+  border-color: var(--add-light);
+  background: rgba(13,148,136,0.3);
+}
 
 /* VIEWS */
 .view { display: none; padding: 32px 24px; max-width: 800px; margin: 0 auto; }
@@ -308,6 +337,59 @@ p { color: var(--text-muted); margin-bottom: 16px; }
 .lista-risposte .operazione { font-weight: 700; font-size: 1rem; }
 .lista-risposte .tua-risposta { font-size: 0.8rem; opacity: 0.8; }
 
+/* ADDIZIONI — operatore teal */
+.operatori-add { color: var(--add-light); }
+
+.progresso-bar.add { background: var(--add); }
+
+.risposta-input:focus.add-focus { border-color: var(--add); }
+
+.btn-add { background: var(--add); color: white; }
+.btn-add:hover { background: #0f766e; transform: translateY(-1px); }
+
+/* STATS TABS (tabelline vs addizioni) */
+.stat-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.stat-tab {
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: 2px solid var(--border);
+  background: var(--bg);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.stat-tab:hover { border-color: var(--primary); color: var(--primary); }
+.stat-tab.active { background: var(--primary); border-color: var(--primary); color: white; }
+.stat-tab.add.active { background: var(--add); border-color: var(--add); color: white; }
+
+/* ADDIZIONI: tabella livelli */
+.livelli-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.livello-box {
+  background: var(--bg);
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  text-align: center;
+}
+
+.livello-box .lv-nome { font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; }
+.livello-box .lv-media { font-size: 1.6rem; font-weight: 800; color: var(--add); }
+.livello-box .lv-partite { font-size: 0.75rem; color: var(--text-muted); }
+
 /* STATISTICHE */
 .stat-grid {
   display: grid;
@@ -424,5 +506,7 @@ tbody td {
   .risposta-input { font-size: 2rem; width: 130px; }
   .heatmap-cell { font-size: 0.55rem; }
   .card { padding: 20px; }
-  .nav { padding: 0 12px; }
+  .nav { padding: 0 12px; gap: 2px; }
+  .nav-group { padding: 0 4px; }
+  .nav-btn { padding: 6px 10px; font-size: 0.8rem; }
 }

@@ -14,18 +14,21 @@ def api_salva_verifica():
     data = request.get_json()
     verifica_id = salva_verifica(
         modalita=data.get("modalita", "verifica"),
+        materia=data.get("materia", "tabelline"),
         totale_domande=data["totale_domande"],
         risposte_corrette=data["risposte_corrette"],
         tempo_totale=data.get("tempo_totale"),
         timer_per_domanda=data.get("timer_per_domanda"),
-        risposte=data["risposte"]
+        livello_max=data.get("livello_max"),
+        risposte=data["risposte"],
     )
     return jsonify({"ok": True, "verifica_id": verifica_id})
 
 
 @app.route("/api/statistiche")
 def api_statistiche():
-    return jsonify(get_statistiche_generali())
+    materia = request.args.get("materia", "tabelline")
+    return jsonify(get_statistiche_generali(materia))
 
 
 @app.route("/api/verifica/<int:verifica_id>")

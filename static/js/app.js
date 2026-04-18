@@ -1,12 +1,25 @@
 // ─────────────────────────────────────────────────────────────────────────────
+// COSTANTI
+// ─────────────────────────────────────────────────────────────────────────────
+const LIVELLI_ADDIZIONI = {
+  "molto-facile": { min: 1, max: 10,  label: "Molto semplice (1–10)"  },
+  "facile":       { min: 1, max: 20,  label: "Semplice (1–20)"        },
+  "medio":        { min: 1, max: 50,  label: "Medio (1–50)"           },
+  "difficile":    { min: 1, max: 100, label: "Difficile (1–100)"      },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // STATE
 // ─────────────────────────────────────────────────────────────────────────────
 const state = {
-  modalita: null,           // 'training' | 'verifica'
+  materia: null,         // 'tabelline' | 'addizioni'
+  modalita: null,        // 'training' | 'verifica' | 'add-training' | 'add-verifica'
+  operatore: "×",        // "×" o "+"
+  livelloMax: null,      // solo addizioni
   domande: [],
   indiceDomanda: 0,
   risposte: [],
-  timerPerDomanda: 0,       // 0 = nessun timer
+  timerPerDomanda: 0,
   timerInterval: null,
   tempoRimanente: 0,
   inizioSessione: null,
@@ -22,71 +35,94 @@ function mostraVista(nome) {
   document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
   document.getElementById("view-" + nome).classList.add("active");
   document.getElementById("nav-" + nome).classList.add("active");
-  if (nome === "stats") caricaStatistiche();
+  if (nome === "stats") caricaStatistiche("tabelline");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GENERAZIONE DOMANDE
+// GENERAZIONE DOMANDE (unificata per × e +)
 // ─────────────────────────────────────────────────────────────────────────────
-function generaDomande(n, daMin, daMax, perMin, perMax) {
-  // Costruisce il pool di tutte le combinazioni possibili (senza ripetizioni)
-  const pool = [];
-  for (let a = daMin; a <= daMax; a++) {
-    for (let b = perMin; b <= perMax; b++) {
-      pool.push({ a, b, risposta: a * b });
-    }
-  }
-
-  // Fisher-Yates shuffle
-  for (let i = pool.length - 1; i > 0; i--) {
+function fisherYates(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
+    [arr[i], arr[j]] = [arr[j], arr[i]];
   }
+}
 
-  // Se n > pool disponibile, permette ripetizioni completando con un secondo giro
-  if (n <= pool.length) return pool.slice(0, n);
+function rand(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
 
-  const domande = [...pool];
-  while (domande.length < n) {
-    const extra = [...pool];
-    for (let i = extra.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [extra[i], extra[j]] = [extra[j], extra[i]];
+function generaDomande(n, op, min1, max1, min2, max2) {
+  const calc = (a, b) => op === "+" ? a + b : a * b;
+  const poolSize = (max1 - min1 + 1) * (max2 - min2 + 1);
+
+  if (poolSize <= 600) {
+    // Pool piccolo: shuffle completo, nessuna ripetizione garantita
+    const pool = [];
+    for (let a = min1; a <= max1; a++) {
+      for (let b = min2; b <= max2; b++) {
+        pool.push({ a, b, risposta: calc(a, b) });
+      }
     }
-    domande.push(...extra);
+    fisherYates(pool);
+    if (n <= pool.length) return pool.slice(0, n);
+    // n > pool: aggiungo giri shufflati extra
+    const result = [...pool];
+    while (result.length < n) {
+      const extra = [...pool];
+      fisherYates(extra);
+      result.push(...extra);
+    }
+    return result.slice(0, n);
+  } else {
+    // Pool grande (es. 1–100 + 1–100 = 10 000 combinazioni):
+    // campionamento casuale senza ripetizioni tramite Set
+    const seen = new Set();
+    const domande = [];
+    while (domande.length < n) {
+      const a = rand(min1, max1);
+      const b = rand(min2, max2);
+      const key = `${a},${b}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        domande.push({ a, b, risposta: calc(a, b) });
+      }
+    }
+    return domande;
   }
-  return domande.slice(0, n);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TRAINING — AVVIO
+// TABELLINE — TRAINING
 // ─────────────────────────────────────────────────────────────────────────────
 function avviaTraining() {
   const n = parseInt(document.getElementById("training-num").value) || 10;
-  state.modalita = "training";
+  state.materia    = "tabelline";
+  state.modalita   = "training";
+  state.operatore  = "×";
+  state.livelloMax = null;
   state.numDomande = n;
-  state.domande = generaDomande(n, 2, 10, 2, 10);
+  state.domande    = generaDomande(n, "×", 2, 10, 2, 10);
   state.indiceDomanda = 0;
-  state.risposte = [];
+  state.risposte   = [];
   state.timerPerDomanda = 0;
   state.inizioSessione = Date.now();
 
-  document.getElementById("training-setup").style.display = "none";
-  document.getElementById("training-sessione").style.display = "block";
+  document.getElementById("training-setup").style.display     = "none";
+  document.getElementById("training-sessione").style.display  = "block";
   document.getElementById("training-risultato").style.display = "none";
 
   mostraDomandaTraining();
 }
 
 function mostraDomandaTraining() {
-  const d = state.domande[state.indiceDomanda];
+  const d   = state.domande[state.indiceDomanda];
   const tot = state.domande.length;
   const idx = state.indiceDomanda;
 
   document.getElementById("tr-progresso-label").textContent = `${idx + 1} / ${tot}`;
-  document.getElementById("tr-progresso-bar").style.width = `${(idx / tot) * 100}%`;
-
-  document.getElementById("tr-moltiplicazione").innerHTML =
+  document.getElementById("tr-progresso-bar").style.width   = `${(idx / tot) * 100}%`;
+  document.getElementById("tr-moltiplicazione").innerHTML   =
     `<span>${d.a}</span> <span class="operatori">×</span> <span>${d.b}</span> <span class="operatori">=</span>`;
 
   const input = document.getElementById("tr-risposta-input");
@@ -94,12 +130,12 @@ function mostraDomandaTraining() {
   input.className = "risposta-input";
   input.focus();
 
-  document.getElementById("tr-feedback").textContent = "";
-  document.getElementById("tr-feedback").className = "feedback-msg";
-  document.getElementById("tr-hint").className = "hint-risposta";
-  document.getElementById("tr-hint").textContent = "";
-  document.getElementById("btn-tr-conferma").textContent = "Conferma";
-  document.getElementById("btn-tr-conferma").dataset.stato = "attesa";
+  document.getElementById("tr-feedback").textContent  = "";
+  document.getElementById("tr-feedback").className    = "feedback-msg";
+  document.getElementById("tr-hint").className        = "hint-risposta";
+  document.getElementById("tr-hint").textContent      = "";
+  document.getElementById("btn-tr-conferma").textContent    = "Conferma";
+  document.getElementById("btn-tr-conferma").dataset.stato  = "attesa";
 
   state.inizioDomanda = Date.now();
 }
@@ -108,80 +144,71 @@ function confermaTraining() {
   const btn = document.getElementById("btn-tr-conferma");
   if (btn.dataset.stato === "avanti") {
     state.indiceDomanda++;
-    if (state.indiceDomanda >= state.domande.length) {
-      terminaSessione();
-    } else {
-      mostraDomandaTraining();
-    }
+    if (state.indiceDomanda >= state.domande.length) terminaSessione();
+    else mostraDomandaTraining();
     return;
   }
 
-  const d = state.domande[state.indiceDomanda];
+  const d     = state.domande[state.indiceDomanda];
   const input = document.getElementById("tr-risposta-input");
   const valore = parseInt(input.value);
-  const tempo = (Date.now() - state.inizioDomanda) / 1000;
+  const tempo  = (Date.now() - state.inizioDomanda) / 1000;
 
   if (isNaN(valore)) { input.focus(); return; }
 
   const corretta = valore === d.risposta;
-
-  state.risposte.push({
-    moltiplicando: d.a,
-    moltiplicatore: d.b,
-    risposta_corretta: d.risposta,
-    risposta_utente: valore,
-    tempo_secondi: tempo,
-    corretta,
-  });
+  state.risposte.push({ moltiplicando: d.a, moltiplicatore: d.b,
+    risposta_corretta: d.risposta, risposta_utente: valore, tempo_secondi: tempo, corretta });
 
   const feedback = document.getElementById("tr-feedback");
-  const hint = document.getElementById("tr-hint");
+  const hint     = document.getElementById("tr-hint");
   input.className = "risposta-input " + (corretta ? "corretta" : "sbagliata");
 
   if (corretta) {
     feedback.textContent = "✓ Esatto!";
-    feedback.className = "feedback-msg corretta";
-    hint.className = "hint-risposta";
+    feedback.className   = "feedback-msg corretta";
+    hint.className       = "hint-risposta";
   } else {
     feedback.textContent = "✗ Sbagliato";
-    feedback.className = "feedback-msg sbagliata";
-    hint.textContent = `La risposta corretta è: ${d.a} × ${d.b} = ${d.risposta}`;
-    hint.className = "hint-risposta sbagliata";
+    feedback.className   = "feedback-msg sbagliata";
+    hint.textContent     = `La risposta corretta è: ${d.a} × ${d.b} = ${d.risposta}`;
+    hint.className       = "hint-risposta sbagliata";
   }
-
-  btn.textContent = state.indiceDomanda + 1 < state.domande.length ? "Prossima →" : "Vedi risultato";
+  btn.textContent  = state.indiceDomanda + 1 < state.domande.length ? "Prossima →" : "Vedi risultato";
   btn.dataset.stato = "avanti";
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// VERIFICA — AVVIO
+// TABELLINE — VERIFICA
 // ─────────────────────────────────────────────────────────────────────────────
 function avviaVerifica() {
   const timer = parseInt(document.getElementById("ver-timer").value) || 0;
-  state.modalita = "verifica";
+  state.materia    = "tabelline";
+  state.modalita   = "verifica";
+  state.operatore  = "×";
+  state.livelloMax = null;
   state.numDomande = 20;
-  state.domande = generaDomande(20, 2, 10, 2, 10);
+  state.domande    = generaDomande(20, "×", 2, 10, 2, 10);
   state.indiceDomanda = 0;
-  state.risposte = [];
+  state.risposte   = [];
   state.timerPerDomanda = timer;
   state.inizioSessione = Date.now();
 
-  document.getElementById("verifica-setup").style.display = "none";
-  document.getElementById("verifica-sessione").style.display = "block";
+  document.getElementById("verifica-setup").style.display     = "none";
+  document.getElementById("verifica-sessione").style.display  = "block";
   document.getElementById("verifica-risultato").style.display = "none";
 
   mostraDomandaVerifica();
 }
 
 function mostraDomandaVerifica() {
-  const d = state.domande[state.indiceDomanda];
+  const d   = state.domande[state.indiceDomanda];
   const tot = state.domande.length;
   const idx = state.indiceDomanda;
 
   document.getElementById("ver-progresso-label").textContent = `${idx + 1} / ${tot}`;
-  document.getElementById("ver-progresso-bar").style.width = `${(idx / tot) * 100}%`;
-
-  document.getElementById("ver-moltiplicazione").innerHTML =
+  document.getElementById("ver-progresso-bar").style.width   = `${(idx / tot) * 100}%`;
+  document.getElementById("ver-moltiplicazione").innerHTML   =
     `<span>${d.a}</span> <span class="operatori">×</span> <span>${d.b}</span> <span class="operatori">=</span>`;
 
   const input = document.getElementById("ver-risposta-input");
@@ -190,20 +217,204 @@ function mostraDomandaVerifica() {
   input.focus();
 
   document.getElementById("ver-feedback").textContent = "";
-  document.getElementById("ver-feedback").className = "feedback-msg";
+  document.getElementById("ver-feedback").className   = "feedback-msg";
 
-  // Timer
+  avviaTimer("ver-timer-display");
+  state.inizioDomanda = Date.now();
+}
+
+function confermaVerifica() {
+  const d     = state.domande[state.indiceDomanda];
+  const input = document.getElementById("ver-risposta-input");
+  const valore = parseInt(input.value);
+  const tempo  = (Date.now() - state.inizioDomanda) / 1000;
+  if (isNaN(valore)) { input.focus(); return; }
+
   stopTimer();
+  const corretta = valore === d.risposta;
+  state.risposte.push({ moltiplicando: d.a, moltiplicatore: d.b,
+    risposta_corretta: d.risposta, risposta_utente: valore, tempo_secondi: tempo, corretta });
+
+  const feedback = document.getElementById("ver-feedback");
+  input.className = "risposta-input " + (corretta ? "corretta" : "sbagliata");
+  feedback.textContent = corretta ? "✓ Corretto!" : `✗ Era ${d.risposta}`;
+  feedback.className   = "feedback-msg " + (corretta ? "corretta" : "sbagliata");
+
+  setTimeout(() => { state.indiceDomanda++; avanzaOTermina("ver"); }, 700);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADDIZIONI — TRAINING
+// ─────────────────────────────────────────────────────────────────────────────
+function avviaAddTraining() {
+  const n      = parseInt(document.getElementById("add-tr-num").value) || 10;
+  const livKey = document.getElementById("add-tr-livello").value;
+  const lv     = LIVELLI_ADDIZIONI[livKey];
+
+  state.materia    = "addizioni";
+  state.modalita   = "add-training";
+  state.operatore  = "+";
+  state.livelloMax = lv.max;
+  state.numDomande = n;
+  state.domande    = generaDomande(n, "+", lv.min, lv.max, lv.min, lv.max);
+  state.indiceDomanda = 0;
+  state.risposte   = [];
+  state.timerPerDomanda = 0;
+  state.inizioSessione = Date.now();
+
+  document.getElementById("add-training-setup").style.display     = "none";
+  document.getElementById("add-training-sessione").style.display  = "block";
+  document.getElementById("add-training-risultato").style.display = "none";
+
+  mostraDomandaAddTraining();
+}
+
+function mostraDomandaAddTraining() {
+  const d   = state.domande[state.indiceDomanda];
+  const tot = state.domande.length;
+  const idx = state.indiceDomanda;
+
+  document.getElementById("add-tr-progresso-label").textContent = `${idx + 1} / ${tot}`;
+  document.getElementById("add-tr-progresso-bar").style.width   = `${(idx / tot) * 100}%`;
+  document.getElementById("add-tr-operazione").innerHTML        =
+    `<span>${d.a}</span> <span class="operatori operatori-add">+</span> <span>${d.b}</span> <span class="operatori operatori-add">=</span>`;
+
+  const input = document.getElementById("add-tr-risposta-input");
+  input.value = "";
+  input.className = "risposta-input";
+  input.focus();
+
+  document.getElementById("add-tr-feedback").textContent  = "";
+  document.getElementById("add-tr-feedback").className    = "feedback-msg";
+  document.getElementById("add-tr-hint").className        = "hint-risposta";
+  document.getElementById("add-tr-hint").textContent      = "";
+  document.getElementById("btn-add-tr-conferma").textContent    = "Conferma";
+  document.getElementById("btn-add-tr-conferma").dataset.stato  = "attesa";
+
+  state.inizioDomanda = Date.now();
+}
+
+function confermaAddTraining() {
+  const btn = document.getElementById("btn-add-tr-conferma");
+  if (btn.dataset.stato === "avanti") {
+    state.indiceDomanda++;
+    if (state.indiceDomanda >= state.domande.length) terminaSessione();
+    else mostraDomandaAddTraining();
+    return;
+  }
+
+  const d     = state.domande[state.indiceDomanda];
+  const input = document.getElementById("add-tr-risposta-input");
+  const valore = parseInt(input.value);
+  const tempo  = (Date.now() - state.inizioDomanda) / 1000;
+
+  if (isNaN(valore)) { input.focus(); return; }
+
+  const corretta = valore === d.risposta;
+  state.risposte.push({ moltiplicando: d.a, moltiplicatore: d.b,
+    risposta_corretta: d.risposta, risposta_utente: valore, tempo_secondi: tempo, corretta });
+
+  const feedback = document.getElementById("add-tr-feedback");
+  const hint     = document.getElementById("add-tr-hint");
+  input.className = "risposta-input " + (corretta ? "corretta" : "sbagliata");
+
+  if (corretta) {
+    feedback.textContent = "✓ Esatto!";
+    feedback.className   = "feedback-msg corretta";
+    hint.className       = "hint-risposta";
+  } else {
+    feedback.textContent = "✗ Sbagliato";
+    feedback.className   = "feedback-msg sbagliata";
+    hint.textContent     = `La risposta corretta è: ${d.a} + ${d.b} = ${d.risposta}`;
+    hint.className       = "hint-risposta sbagliata";
+  }
+  btn.textContent   = state.indiceDomanda + 1 < state.domande.length ? "Prossima →" : "Vedi risultato";
+  btn.dataset.stato = "avanti";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADDIZIONI — VERIFICA
+// ─────────────────────────────────────────────────────────────────────────────
+function avviaAddVerifica() {
+  const timer  = parseInt(document.getElementById("add-ver-timer").value) || 0;
+  const livKey = document.getElementById("add-ver-livello").value;
+  const lv     = LIVELLI_ADDIZIONI[livKey];
+
+  state.materia    = "addizioni";
+  state.modalita   = "add-verifica";
+  state.operatore  = "+";
+  state.livelloMax = lv.max;
+  state.numDomande = 20;
+  state.domande    = generaDomande(20, "+", lv.min, lv.max, lv.min, lv.max);
+  state.indiceDomanda = 0;
+  state.risposte   = [];
+  state.timerPerDomanda = timer;
+  state.inizioSessione = Date.now();
+
+  document.getElementById("add-verifica-setup").style.display     = "none";
+  document.getElementById("add-verifica-sessione").style.display  = "block";
+  document.getElementById("add-verifica-risultato").style.display = "none";
+
+  mostraDomandaAddVerifica();
+}
+
+function mostraDomandaAddVerifica() {
+  const d   = state.domande[state.indiceDomanda];
+  const tot = state.domande.length;
+  const idx = state.indiceDomanda;
+
+  document.getElementById("add-ver-progresso-label").textContent = `${idx + 1} / ${tot}`;
+  document.getElementById("add-ver-progresso-bar").style.width   = `${(idx / tot) * 100}%`;
+  document.getElementById("add-ver-operazione").innerHTML        =
+    `<span>${d.a}</span> <span class="operatori operatori-add">+</span> <span>${d.b}</span> <span class="operatori operatori-add">=</span>`;
+
+  const input = document.getElementById("add-ver-risposta-input");
+  input.value = "";
+  input.className = "risposta-input";
+  input.focus();
+
+  document.getElementById("add-ver-feedback").textContent = "";
+  document.getElementById("add-ver-feedback").className   = "feedback-msg";
+
+  avviaTimer("add-ver-timer-display");
+  state.inizioDomanda = Date.now();
+}
+
+function confermaAddVerifica() {
+  const d     = state.domande[state.indiceDomanda];
+  const input = document.getElementById("add-ver-risposta-input");
+  const valore = parseInt(input.value);
+  const tempo  = (Date.now() - state.inizioDomanda) / 1000;
+  if (isNaN(valore)) { input.focus(); return; }
+
+  stopTimer();
+  const corretta = valore === d.risposta;
+  state.risposte.push({ moltiplicando: d.a, moltiplicatore: d.b,
+    risposta_corretta: d.risposta, risposta_utente: valore, tempo_secondi: tempo, corretta });
+
+  const feedback = document.getElementById("add-ver-feedback");
+  input.className = "risposta-input " + (corretta ? "corretta" : "sbagliata");
+  feedback.textContent = corretta ? "✓ Corretto!" : `✗ Era ${d.risposta}`;
+  feedback.className   = "feedback-msg " + (corretta ? "corretta" : "sbagliata");
+
+  setTimeout(() => { state.indiceDomanda++; avanzaOTermina("add-ver"); }, 700);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TIMER (condiviso tra verifica tabelline e addizioni)
+// ─────────────────────────────────────────────────────────────────────────────
+function avviaTimer(displayId) {
+  stopTimer();
+  state._timerDisplayId = displayId;
+  const el = document.getElementById(displayId);
   if (state.timerPerDomanda > 0) {
     state.tempoRimanente = state.timerPerDomanda;
     aggiornaDisplayTimer();
+    el.classList.remove("hidden");
     state.timerInterval = setInterval(tickTimer, 1000);
-    document.getElementById("ver-timer-display").classList.remove("hidden");
   } else {
-    document.getElementById("ver-timer-display").classList.add("hidden");
+    el.classList.add("hidden");
   }
-
-  state.inizioDomanda = Date.now();
 }
 
 function tickTimer() {
@@ -216,31 +427,26 @@ function tickTimer() {
 }
 
 function aggiornaDisplayTimer() {
-  const el = document.getElementById("ver-timer-display");
+  const el = document.getElementById(state._timerDisplayId);
+  if (!el) return;
   el.textContent = `⏱ ${state.tempoRimanente}s`;
-  el.className = "timer-display";
+  el.className   = "timer-display";
   if (state.tempoRimanente <= 3) el.classList.add("danger");
   else if (state.tempoRimanente <= Math.ceil(state.timerPerDomanda * 0.4)) el.classList.add("warning");
 }
 
 function tempoScaduto() {
   const d = state.domande[state.indiceDomanda];
-  const tempo = state.timerPerDomanda;
+  state.risposte.push({ moltiplicando: d.a, moltiplicatore: d.b,
+    risposta_corretta: d.risposta, risposta_utente: null,
+    tempo_secondi: state.timerPerDomanda, corretta: false });
 
-  state.risposte.push({
-    moltiplicando: d.a,
-    moltiplicatore: d.b,
-    risposta_corretta: d.risposta,
-    risposta_utente: null,
-    tempo_secondi: tempo,
-    corretta: false,
-  });
-
-  const feedback = document.getElementById("ver-feedback");
+  const prefix   = state.materia === "addizioni" ? "add-ver" : "ver";
+  const feedback = document.getElementById(`${prefix}-feedback`);
   feedback.textContent = `⏰ Tempo scaduto! La risposta era ${d.risposta}`;
-  feedback.className = "feedback-msg sbagliata";
+  feedback.className   = "feedback-msg sbagliata";
 
-  setTimeout(() => avanzaVerifica(), 1200);
+  setTimeout(() => { state.indiceDomanda++; avanzaOTermina(prefix); }, 1200);
 }
 
 function stopTimer() {
@@ -250,47 +456,13 @@ function stopTimer() {
   }
 }
 
-function confermaVerifica() {
-  const d = state.domande[state.indiceDomanda];
-  const input = document.getElementById("ver-risposta-input");
-  const valore = parseInt(input.value);
-  const tempo = (Date.now() - state.inizioDomanda) / 1000;
-
-  if (isNaN(valore)) { input.focus(); return; }
-
-  stopTimer();
-
-  const corretta = valore === d.risposta;
-
-  state.risposte.push({
-    moltiplicando: d.a,
-    moltiplicatore: d.b,
-    risposta_corretta: d.risposta,
-    risposta_utente: valore,
-    tempo_secondi: tempo,
-    corretta,
-  });
-
-  const feedback = document.getElementById("ver-feedback");
-  input.className = "risposta-input " + (corretta ? "corretta" : "sbagliata");
-
-  if (corretta) {
-    feedback.textContent = "✓ Corretto!";
-    feedback.className = "feedback-msg corretta";
-  } else {
-    feedback.textContent = `✗ Era ${d.risposta}`;
-    feedback.className = "feedback-msg sbagliata";
-  }
-
-  setTimeout(() => avanzaVerifica(), 700);
-}
-
-function avanzaVerifica() {
-  state.indiceDomanda++;
+// Avanza alla prossima domanda di verifica (tabelline o addizioni)
+function avanzaOTermina(prefix) {
   if (state.indiceDomanda >= state.domande.length) {
     terminaSessione();
   } else {
-    mostraDomandaVerifica();
+    if (prefix === "ver")     mostraDomandaVerifica();
+    else                      mostraDomandaAddVerifica();
   }
 }
 
@@ -300,36 +472,40 @@ function avanzaVerifica() {
 async function terminaSessione() {
   stopTimer();
   const tempoTotale = (Date.now() - state.inizioSessione) / 1000;
-  const corrette = state.risposte.filter(r => r.corretta).length;
-  const tot = state.risposte.length;
-  const perc = Math.round((corrette / tot) * 100);
+  const corrette    = state.risposte.filter(r => r.corretta).length;
+  const tot         = state.risposte.length;
+  const perc        = Math.round((corrette / tot) * 100);
 
-  // Salva nel DB
   try {
     await fetch("/api/salva-verifica", {
-      method: "POST",
+      method:  "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        modalita: state.modalita,
-        totale_domande: tot,
+        modalita:         state.modalita,
+        materia:          state.materia,
+        totale_domande:   tot,
         risposte_corrette: corrette,
-        tempo_totale: tempoTotale,
+        tempo_totale:     tempoTotale,
         timer_per_domanda: state.timerPerDomanda || null,
-        risposte: state.risposte,
+        livello_max:      state.livelloMax,
+        risposte:         state.risposte,
       }),
     });
   } catch (e) {
     console.error("Errore salvataggio:", e);
   }
 
-  // Mostra risultato
-  if (state.modalita === "training") {
-    mostraRisultatoTraining(corrette, tot, perc, tempoTotale);
-  } else {
-    mostraRisultatoVerifica(corrette, tot, perc, tempoTotale);
+  switch (state.modalita) {
+    case "training":     mostraRisultatoTraining(corrette, tot, perc, tempoTotale); break;
+    case "verifica":     mostraRisultatoVerifica(corrette, tot, perc, tempoTotale); break;
+    case "add-training": mostraRisultatoAddTraining(corrette, tot, perc, tempoTotale); break;
+    case "add-verifica": mostraRisultatoAddVerifica(corrette, tot, perc, tempoTotale); break;
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// RISULTATI
+// ─────────────────────────────────────────────────────────────────────────────
 function livelloPunteggio(perc) {
   if (perc >= 90) return "ottimo";
   if (perc >= 70) return "buono";
@@ -344,7 +520,7 @@ function votoTesto(perc) {
   return "💪 Allenati ancora!";
 }
 
-function renderListaRisposte(contenitoreId) {
+function renderListaRisposte(contenitoreId, op) {
   const ul = document.getElementById(contenitoreId);
   ul.innerHTML = "";
   state.risposte.forEach(r => {
@@ -352,52 +528,81 @@ function renderListaRisposte(contenitoreId) {
     li.className = r.corretta ? "corretta" : "sbagliata";
     const rispTesto = r.risposta_utente !== null ? r.risposta_utente : "—";
     li.innerHTML = `
-      <div class="operazione">${r.moltiplicando} × ${r.moltiplicatore} = ${r.risposta_corretta}</div>
+      <div class="operazione">${r.moltiplicando} ${op} ${r.moltiplicatore} = ${r.risposta_corretta}</div>
       <div class="tua-risposta">Tu: ${rispTesto}</div>
     `;
     ul.appendChild(li);
   });
 }
 
-function mostraRisultatoTraining(corrette, tot, perc, tempoTotale) {
-  document.getElementById("training-sessione").style.display = "none";
-  document.getElementById("training-risultato").style.display = "block";
-
+function popolaRisultato(prefix, corrette, tot, perc, tempoTotale, extraInfo) {
   const livello = livelloPunteggio(perc);
-  document.getElementById("tr-cerchio").className = `punteggio-cerchio ${livello}`;
-  document.getElementById("tr-punteggio-num").textContent = corrette;
-  document.getElementById("tr-punteggio-tot").textContent = `/ ${tot}`;
-  document.getElementById("tr-voto-testo").textContent = votoTesto(perc);
-  document.getElementById("tr-tempo").textContent = `Tempo: ${formattaTempo(tempoTotale)}`;
+  document.getElementById(`${prefix}-cerchio`).className      = `punteggio-cerchio ${livello}`;
+  document.getElementById(`${prefix}-punteggio-num`).textContent = corrette;
+  document.getElementById(`${prefix}-punteggio-tot`).textContent = `/ ${tot}`;
+  document.getElementById(`${prefix}-voto-testo`).textContent    = votoTesto(perc);
+  if (extraInfo) document.getElementById(`${prefix}-extra`).textContent = extraInfo;
+}
 
-  renderListaRisposte("tr-lista-risposte");
+function mostraRisultatoTraining(corrette, tot, perc, tempoTotale) {
+  document.getElementById("training-sessione").style.display  = "none";
+  document.getElementById("training-risultato").style.display = "block";
+  popolaRisultato("tr", corrette, tot, perc, tempoTotale,
+    `Tempo: ${formattaTempo(tempoTotale)}`);
+  renderListaRisposte("tr-lista-risposte", "×");
 }
 
 function mostraRisultatoVerifica(corrette, tot, perc, tempoTotale) {
-  document.getElementById("verifica-sessione").style.display = "none";
+  document.getElementById("verifica-sessione").style.display  = "none";
   document.getElementById("verifica-risultato").style.display = "block";
-
-  const livello = livelloPunteggio(perc);
-  document.getElementById("ver-cerchio").className = `punteggio-cerchio ${livello}`;
-  document.getElementById("ver-punteggio-num").textContent = corrette;
-  document.getElementById("ver-punteggio-tot").textContent = `/ ${tot}`;
-  document.getElementById("ver-voto-testo").textContent = votoTesto(perc);
-  document.getElementById("ver-tempo").textContent = `Tempo totale: ${formattaTempo(tempoTotale)}`;
+  popolaRisultato("ver", corrette, tot, perc, tempoTotale);
+  document.getElementById("ver-tempo").textContent       = `Tempo totale: ${formattaTempo(tempoTotale)}`;
   document.getElementById("ver-percentuale").textContent = `${perc}% corretto`;
-
-  renderListaRisposte("ver-lista-risposte");
+  renderListaRisposte("ver-lista-risposte", "×");
 }
 
+function mostraRisultatoAddTraining(corrette, tot, perc, tempoTotale) {
+  document.getElementById("add-training-sessione").style.display  = "none";
+  document.getElementById("add-training-risultato").style.display = "block";
+  popolaRisultato("add-tr", corrette, tot, perc, tempoTotale,
+    `Tempo: ${formattaTempo(tempoTotale)}`);
+  renderListaRisposte("add-tr-lista-risposte", "+");
+}
+
+function mostraRisultatoAddVerifica(corrette, tot, perc, tempoTotale) {
+  document.getElementById("add-verifica-sessione").style.display  = "none";
+  document.getElementById("add-verifica-risultato").style.display = "block";
+  popolaRisultato("add-ver", corrette, tot, perc, tempoTotale);
+  document.getElementById("add-ver-tempo").textContent       = `Tempo totale: ${formattaTempo(tempoTotale)}`;
+  document.getElementById("add-ver-percentuale").textContent = `${perc}% corretto`;
+  renderListaRisposte("add-ver-lista-risposte", "+");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RESET
+// ─────────────────────────────────────────────────────────────────────────────
 function resetTraining() {
-  document.getElementById("training-setup").style.display = "block";
-  document.getElementById("training-sessione").style.display = "none";
+  document.getElementById("training-setup").style.display     = "block";
+  document.getElementById("training-sessione").style.display  = "none";
   document.getElementById("training-risultato").style.display = "none";
 }
 
 function resetVerifica() {
-  document.getElementById("verifica-setup").style.display = "block";
-  document.getElementById("verifica-sessione").style.display = "none";
+  document.getElementById("verifica-setup").style.display     = "block";
+  document.getElementById("verifica-sessione").style.display  = "none";
   document.getElementById("verifica-risultato").style.display = "none";
+}
+
+function resetAddTraining() {
+  document.getElementById("add-training-setup").style.display     = "block";
+  document.getElementById("add-training-sessione").style.display  = "none";
+  document.getElementById("add-training-risultato").style.display = "none";
+}
+
+function resetAddVerifica() {
+  document.getElementById("add-verifica-setup").style.display     = "block";
+  document.getElementById("add-verifica-sessione").style.display  = "none";
+  document.getElementById("add-verifica-risultato").style.display = "none";
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -408,9 +613,7 @@ function inputTastiera(targetId, val) {
   if (val === "del") {
     input.value = input.value.slice(0, -1);
   } else {
-    if (input.value.length < 4) {
-      input.value += val;
-    }
+    if (input.value.length < 4) input.value += val;
   }
   input.focus();
 }
@@ -418,20 +621,35 @@ function inputTastiera(targetId, val) {
 // ─────────────────────────────────────────────────────────────────────────────
 // STATISTICHE
 // ─────────────────────────────────────────────────────────────────────────────
-async function caricaStatistiche() {
+async function caricaStatistiche(materia) {
+  // Aggiorna tab attivi
+  document.querySelectorAll(".stat-tab").forEach(t => t.classList.remove("active"));
+  const tab = document.getElementById(`stat-tab-${materia}`);
+  if (tab) tab.classList.add("active");
+
+  // Mostra/nascondi sezioni specifiche per materia
+  document.getElementById("stat-heatmap-section").style.display =
+    materia === "tabelline" ? "block" : "none";
+  document.getElementById("stat-livelli-section").style.display =
+    materia === "addizioni" ? "block" : "none";
+
   try {
-    const res = await fetch("/api/statistiche");
+    const res  = await fetch(`/api/statistiche?materia=${materia}`);
     const data = await res.json();
-    renderStatistiche(data);
+    renderStatistiche(data, materia);
   } catch (e) {
     console.error("Errore caricamento statistiche:", e);
   }
 }
 
-function renderStatistiche(data) {
-  const { generale, per_coppia, ultime_verifiche } = data;
+function nomeLivello(max) {
+  const map = { 10: "Molto semplice", 20: "Semplice", 50: "Medio", 100: "Difficile" };
+  return map[max] || `1–${max}`;
+}
 
-  // Riepilogo generale
+function renderStatistiche(data, materia) {
+  const { generale, per_coppia, per_livello, ultime_verifiche } = data;
+
   document.getElementById("stat-totale-verifiche").textContent = generale.totale_verifiche || 0;
   document.getElementById("stat-media").textContent =
     generale.media_punteggio != null ? Math.round(generale.media_punteggio) + "%" : "—";
@@ -448,51 +666,52 @@ function renderStatistiche(data) {
     document.getElementById("stat-verifiche-table").style.display = "block";
     tbody.innerHTML = ultime_verifiche.map(v => {
       const livello = livelloPunteggio(v.percentuale);
-      const timer = v.timer_per_domanda ? `${v.timer_per_domanda}s` : "—";
+      const timer   = v.timer_per_domanda ? `${v.timer_per_domanda}s` : "—";
+      const livTxt  = materia === "addizioni" && v.livello_max
+        ? nomeLivello(v.livello_max) : "—";
       return `
         <tr>
           <td>${formatData(v.data)}</td>
           <td>${v.risposte_corrette} / ${v.totale_domande}</td>
           <td><span class="badge ${livello}">${v.percentuale}%</span></td>
-          <td>${timer}</td>
+          <td>${materia === "addizioni" ? livTxt : timer}</td>
           <td>${formattaTempo(v.tempo_totale_secondi)}</td>
         </tr>
       `;
     }).join("");
   }
 
-  // Heatmap tabelline
-  renderHeatmap(per_coppia);
+  // Aggiorna intestazione 4ª colonna tabella
+  const th4 = document.getElementById("stat-col4-header");
+  if (th4) th4.textContent = materia === "addizioni" ? "Livello" : "Timer";
+
+  if (materia === "tabelline") renderHeatmap(per_coppia);
+  else                         renderLivelli(per_livello);
 }
 
 function renderHeatmap(per_coppia) {
   const mappa = {};
-  per_coppia.forEach(r => {
-    mappa[`${r.moltiplicando}x${r.moltiplicatore}`] = r.percentuale_corrette;
-  });
+  per_coppia.forEach(r => { mappa[`${r.moltiplicando}x${r.moltiplicatore}`] = r.percentuale_corrette; });
 
   const labelsEl = document.getElementById("heatmap-labels");
-  const gridEl = document.getElementById("heatmap-grid");
-
+  const gridEl   = document.getElementById("heatmap-grid");
   labelsEl.innerHTML = "";
-  gridEl.innerHTML = "";
+  gridEl.innerHTML   = "";
 
   for (let b = 2; b <= 10; b++) {
     const span = document.createElement("span");
     span.textContent = `×${b}`;
     labelsEl.appendChild(span);
   }
-
   for (let a = 2; a <= 10; a++) {
     for (let b = 2; b <= 10; b++) {
-      const key = `${a}x${b}`;
+      const key  = `${a}x${b}`;
       const perc = mappa[key];
       const cell = document.createElement("div");
       cell.className = "heatmap-cell";
-
       if (perc == null) {
         cell.classList.add("no-data");
-        cell.title = `${a}×${b}: nessun dato`;
+        cell.title     = `${a}×${b}: nessun dato`;
         cell.innerHTML = `<span>${a}×${b}</span>`;
       } else {
         let cl = "scarso";
@@ -500,12 +719,27 @@ function renderHeatmap(per_coppia) {
         else if (perc >= 70) cl = "buono";
         else if (perc >= 50) cl = "medio";
         cell.classList.add(cl);
-        cell.title = `${a}×${b} = ${a*b}: ${perc}% corretto`;
+        cell.title     = `${a}×${b} = ${a*b}: ${perc}% corretto`;
         cell.innerHTML = `<span>${a}×${b}</span><span>${perc}%</span>`;
       }
       gridEl.appendChild(cell);
     }
   }
+}
+
+function renderLivelli(per_livello) {
+  const grid = document.getElementById("stat-livelli-grid");
+  if (!per_livello || !per_livello.length) {
+    grid.innerHTML = `<p style="color:var(--text-muted)">Nessuna verifica ancora.</p>`;
+    return;
+  }
+  grid.innerHTML = per_livello.map(l => `
+    <div class="livello-box">
+      <div class="lv-nome">${nomeLivello(l.livello_max)}</div>
+      <div class="lv-media">${l.media}%</div>
+      <div class="lv-partite">${l.totale} verific${l.totale === 1 ? "a" : "he"}</div>
+    </div>
+  `).join("");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -529,13 +763,13 @@ function formatData(str) {
 // KEYBOARD SUPPORT
 // ─────────────────────────────────────────────────────────────────────────────
 document.addEventListener("keydown", function (e) {
-  if (e.key === "Enter") {
-    const verSessione = document.getElementById("verifica-sessione");
-    const trSessione = document.getElementById("training-sessione");
-    if (verSessione && verSessione.style.display !== "none") {
-      confermaVerifica();
-    } else if (trSessione && trSessione.style.display !== "none") {
-      confermaTraining();
-    }
-  }
+  if (e.key !== "Enter") return;
+  const vis = id => {
+    const el = document.getElementById(id);
+    return el && el.style.display !== "none";
+  };
+  if      (vis("verifica-sessione"))     confermaVerifica();
+  else if (vis("training-sessione"))     confermaTraining();
+  else if (vis("add-verifica-sessione")) confermaAddVerifica();
+  else if (vis("add-training-sessione")) confermaAddTraining();
 });
