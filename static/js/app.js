@@ -29,17 +29,33 @@ function mostraVista(nome) {
 // GENERAZIONE DOMANDE
 // ─────────────────────────────────────────────────────────────────────────────
 function generaDomande(n, daMin, daMax, perMin, perMax) {
-  const domande = [];
-  for (let i = 0; i < n; i++) {
-    const a = rand(daMin, daMax);
-    const b = rand(perMin, perMax);
-    domande.push({ a, b, risposta: a * b });
+  // Costruisce il pool di tutte le combinazioni possibili (senza ripetizioni)
+  const pool = [];
+  for (let a = daMin; a <= daMax; a++) {
+    for (let b = perMin; b <= perMax; b++) {
+      pool.push({ a, b, risposta: a * b });
+    }
   }
-  return domande;
-}
 
-function rand(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+  // Fisher-Yates shuffle
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+
+  // Se n > pool disponibile, permette ripetizioni completando con un secondo giro
+  if (n <= pool.length) return pool.slice(0, n);
+
+  const domande = [...pool];
+  while (domande.length < n) {
+    const extra = [...pool];
+    for (let i = extra.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [extra[i], extra[j]] = [extra[j], extra[i]];
+    }
+    domande.push(...extra);
+  }
+  return domande.slice(0, n);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
