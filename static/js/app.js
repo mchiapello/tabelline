@@ -35,7 +35,7 @@ function mostraVista(nome) {
   document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
   document.getElementById("view-" + nome).classList.add("active");
   document.getElementById("nav-" + nome).classList.add("active");
-  if (nome === "stats") caricaStatistiche("tabelline");
+  if (nome === "stats") caricaStatistiche(window.DEFAULT_MATERIA || "tabelline");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -627,11 +627,11 @@ async function caricaStatistiche(materia) {
   const tab = document.getElementById(`stat-tab-${materia}`);
   if (tab) tab.classList.add("active");
 
-  // Mostra/nascondi sezioni specifiche per materia
-  document.getElementById("stat-heatmap-section").style.display =
-    materia === "tabelline" ? "block" : "none";
-  document.getElementById("stat-livelli-section").style.display =
-    materia === "addizioni" ? "block" : "none";
+  // Mostra/nascondi sezioni specifiche per materia (elementi opzionali)
+  const heatmapSection = document.getElementById("stat-heatmap-section");
+  const livelliSection  = document.getElementById("stat-livelli-section");
+  if (heatmapSection) heatmapSection.style.display = materia === "tabelline" ? "block" : "none";
+  if (livelliSection)  livelliSection.style.display  = materia === "addizioni" ? "block" : "none";
 
   try {
     const res  = await fetch(`/api/statistiche?materia=${materia}`);

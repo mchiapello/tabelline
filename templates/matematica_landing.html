@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Matematica</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    .sub-landing-wrap {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 24px;
+    }
+
+    .sub-landing-header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    .sub-landing-back {
+      display: inline-block;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+      transition: color 0.15s;
+    }
+    .sub-landing-back:hover { color: var(--primary); }
+
+    .sub-landing-title {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+    }
+
+    .sub-landing-subtitle {
+      color: var(--text-muted);
+      font-size: 1rem;
+    }
+
+    .operazioni-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 20px;
+      width: 100%;
+      max-width: 520px;
+    }
+
+    .operazione-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 36px 20px;
+      border-radius: var(--radius);
+      text-decoration: none;
+      color: white;
+      font-weight: 700;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: var(--shadow);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .operazione-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    }
+
+    .operazione-card.addizioni   { background: var(--add); }
+    .operazione-card.addizioni:hover { background: #0f766e; }
+
+    .operazione-card.sottrazioni { background: var(--sottrazioni); }
+    .operazione-card.sottrazioni:hover { background: #c2410c; }
+
+    .operazione-card.wip { opacity: 0.65; cursor: default; }
+    .operazione-card.wip:hover { transform: none; box-shadow: var(--shadow); }
+
+    .op-icon   { font-size: 2.5rem; line-height: 1; }
+    .op-nome   { font-size: 1.2rem; letter-spacing: -0.3px; }
+    .op-desc   { font-size: 0.8rem; opacity: 0.85; font-weight: 400; }
+
+    .wip-badge {
+      background: rgba(255,255,255,0.25);
+      border-radius: 20px;
+      padding: 2px 10px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="sub-landing-wrap">
+    <div class="sub-landing-header">
+      <a href="/" class="sub-landing-back">← Home</a>
+      <div class="sub-landing-title">✖ Matematica</div>
+      <div class="sub-landing-subtitle">Scegli l'operazione</div>
+    </div>
+
+    <div class="operazioni-grid">
+
+      <a href="/matematica/addizioni" class="operazione-card addizioni">
+        <div class="op-icon">＋</div>
+        <div class="op-nome">Addizioni</div>
+        <div class="op-desc">Allenamento e verifica</div>
+      </a>
+
+      <div class="operazione-card sottrazioni wip">
+        <div class="op-icon">－</div>
+        <div class="op-nome">Sottrazioni</div>
+        <div class="op-desc">In arrivo</div>
+        <div class="wip-badge">Prossimamente</div>
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>

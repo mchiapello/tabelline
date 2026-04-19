@@ -10,6 +10,18 @@ def landing():
 
 @app.route("/matematica")
 def matematica():
+    return render_template("matematica_landing.html")
+
+@app.route("/matematica/addizioni")
+def matematica_addizioni():
+    return render_template("addizioni.html")
+
+@app.route("/matematica/sottrazioni")
+def matematica_sottrazioni():
+    return render_template("sottrazioni.html")
+
+@app.route("/matematica/moltiplicazioni")
+def matematica_moltiplicazioni():
     return render_template("index.html")
 
 @app.route("/italiano")
