@@ -3,6 +3,8 @@
   --primary-light: #818cf8;
   --add: #0d9488;
   --add-light: #5eead4;
+  --italiano: #7c3aed;
+  --italiano-light: #c4b5fd;
   --success: #22c55e;
   --danger: #ef4444;
   --warning: #f59e0b;
@@ -346,6 +348,14 @@ p { color: var(--text-muted); margin-bottom: 16px; }
 
 .btn-add { background: var(--add); color: white; }
 .btn-add:hover { background: #0f766e; transform: translateY(-1px); }
+.btn-italiano { background: var(--italiano); color: white; }
+.btn-italiano:hover { background: #6d28d9; transform: translateY(-1px); }
+
+/* Nav viola per Italiano */
+.nav-italiano {
+  background: var(--italiano);
+  box-shadow: 0 2px 8px rgba(124,58,237,0.3);
+}
 
 /* STATS TABS (tabelline vs addizioni) */
 .stat-tabs {

@@ -5,8 +5,16 @@ app = Flask(__name__)
 
 
 @app.route("/")
-def index():
+def landing():
+    return render_template("landing.html")
+
+@app.route("/matematica")
+def matematica():
     return render_template("index.html")
+
+@app.route("/italiano")
+def italiano():
+    return render_template("italiano.html")
 
 
 @app.route("/api/salva-verifica", methods=["POST"])
