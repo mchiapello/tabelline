@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MathQuest — Architecture Diagram</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0a0a1a;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    color: #e0e8ff;
+    min-height: 100vh;
+    padding: 32px 24px;
+  }
+
+  h1 { text-align: center; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.05em; color: #FFD700; margin-bottom: 6px; }
+  .subtitle { text-align: center; font-size: 0.85rem; color: #7b8ab8; margin-bottom: 32px; }
+
+  /* ── LEGEND ── */
+  .legend { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin-bottom: 36px; }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 0.75rem; color: #9aa8cc; }
+  .legend-dot { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
+
+  /* ── NODES ── */
+  .node { border-radius: 12px; padding: 14px 16px; position: relative; }
+  .node-label { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; margin-bottom: 5px; opacity: 0.75; }
+  .node-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 7px; }
+  .node-items { list-style: none; font-size: 0.75rem; color: #9aa8cc; line-height: 1.75; }
+  .node-items li::before { content: "▸ "; opacity: 0.45; }
+
+  .node-core    { background: #12183a; border: 2px solid #FFD700; box-shadow: 0 0 24px rgba(255,215,0,0.15); }
+  .node-core    .node-label, .node-core  .node-title { color: #FFD700; }
+  .node-module  { background: #0e1f30; border: 2px solid #00D4FF; box-shadow: 0 0 14px rgba(0,212,255,0.12); }
+  .node-module  .node-label, .node-module .node-title { color: #00D4FF; }
+  .node-locked  { background: #111120; border: 2px dashed #3a3a5c; opacity: 0.58; }
+  .node-locked  .node-label, .node-locked .node-title { color: #5a5a8c; }
+  .node-locked  .node-items { color: #4a4a70; }
+  .node-db      { background: #1a0e2e; border: 2px solid #7B2FBE; box-shadow: 0 0 14px rgba(123,47,190,0.15); }
+  .node-db      .node-label, .node-db    .node-title { color: #b06fff; }
+  .node-fe      { background: #0e2218; border: 2px solid #4CAF50; box-shadow: 0 0 14px rgba(76,175,80,0.12); }
+  .node-fe      .node-label, .node-fe    .node-title { color: #4CAF50; }
+  .node-token   { background: #2a1410; border: 2px solid #FF6B6B; box-shadow: 0 0 14px rgba(255,107,107,0.12); }
+  .node-token   .node-label, .node-token .node-title { color: #FF6B6B; }
+  .node-srs     { background: #1a1530; border: 2px solid #9b59b6; box-shadow: 0 0 14px rgba(155,89,182,0.14); }
+  .node-srs     .node-label, .node-srs   .node-title { color: #c39bd3; }
+
+  /* ── ARROWS ── */
+  .arrow-v { display: flex; flex-direction: column; align-items: center; }
+  .arrow-v .line  { width: 2px; height: 18px; background: linear-gradient(to bottom, transparent, #4a5580); }
+  .arrow-v .line2 { width: 2px; height: 18px; background: linear-gradient(to bottom, #4a5580, transparent); }
+  .arrow-v .tip   { color: #7b8ab8; font-size: 0.95rem; line-height: 1; }
+  .arrow-v .label { font-size: 0.62rem; color: #5a6890; text-align: center; margin: 2px 0; }
+
+  /* ── SECTION DIVIDERS ── */
+  .section-divider { display: flex; align-items: center; gap: 14px; margin: 36px 0 20px; max-width: 980px; margin-left: auto; margin-right: auto; }
+  .section-divider span { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #4a5580; white-space: nowrap; }
+  .section-divider::before, .section-divider::after { content: ''; flex: 1; height: 1px; background: #1e2540; }
+
+  /* ── TABLES ── */
+  .tbl-wrap { max-width: 980px; margin: 0 auto 36px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+  thead tr { background: #12183a; border-bottom: 1px solid #1e2f5c; }
+  thead th { padding: 9px 13px; text-align: left; font-weight: 700; color: #7b8ab8; letter-spacing: 0.06em; font-size: 0.69rem; text-transform: uppercase; }
+  tbody tr { border-bottom: 1px solid #111828; }
+  tbody tr:hover { background: #0e1428; }
+  tbody td { padding: 8px 13px; vertical-align: top; }
+  .method { font-weight: 700; font-size: 0.69rem; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+  .get  { background: #0d2e1a; color: #4CAF50; }
+  .post { background: #1a1a0d; color: #FFD700; }
+  code  { font-family: 'Courier New', monospace; font-size: 0.76rem; color: #00D4FF; background: #0a1520; padding: 2px 5px; border-radius: 4px; }
+  .desc { color: #7b8ab8; }
+  .owner-core   { color: #FFD700; font-size: 0.72rem; }
+  .owner-module { color: #00D4FF; font-size: 0.72rem; }
+
+  /* ── FLOW STEPS ── */
+  .flow-steps { max-width: 980px; margin: 0 auto 36px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .flow-step  { background: #0e1428; border: 1px solid #1e2f5c; border-radius: 10px; padding: 13px 14px; }
+  .step-num   { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: #FFD700; color: #0a0a1a; font-size: 0.68rem; font-weight: 800; margin-bottom: 7px; }
+  .step-text  { font-size: 0.75rem; color: #9aa8cc; line-height: 1.5; }
+  .step-text strong { color: #e0e8ff; }
+
+  /* ── SCHEMA CARDS ── */
+  .schema-grid { max-width: 980px; margin: 0 auto 36px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .schema-card { border-radius: 10px; padding: 15px; }
+  .schema-card h3 { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 9px; }
+  .schema-card.core   { background: #12183a; border: 1px solid #FFD700; }
+  .schema-card.core   h3 { color: #FFD700; }
+  .schema-card.module { background: #0e1f30; border: 1px solid #00D4FF; }
+  .schema-card.module h3 { color: #00D4FF; }
+  .tbl-list { list-style: none; font-size: 0.76rem; color: #7b8ab8; line-height: 1.85; }
+  .tbl-list li { display: flex; align-items: baseline; gap: 7px; }
+  .tname      { font-family: 'Courier New', monospace; color: #b06fff; }
+  .tname.mod  { color: #00D4FF; }
+
+  /* ── RESOLVED GAPS ── */
+  .gaps-grid { max-width: 980px; margin: 0 auto 36px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .gap-card  { border-radius: 10px; padding: 14px 15px; background: #0e1428; border-left: 3px solid; }
+  .gap-card.resolved  { border-color: #4CAF50; }
+  .gap-card.limited   { border-color: #FFD700; }
+  .gap-card h4        { font-size: 0.74rem; font-weight: 700; margin-bottom: 5px; }
+  .gap-card.resolved  h4 { color: #4CAF50; }
+  .gap-card.limited   h4 { color: #FFD700; }
+  .gap-card p         { font-size: 0.74rem; color: #7b8ab8; line-height: 1.5; }
+  .gap-card p strong  { color: #c0caec; }
+
+  /* ── REWARD EVENT ── */
+  .reward-box { max-width: 980px; margin: 0 auto 36px; background: #0e1428; border: 1px solid #1e2f5c; border-radius: 10px; padding: 18px 20px; }
+  .reward-box pre { font-family: 'Courier New', monospace; font-size: 0.76rem; color: #9aa8cc; line-height: 1.7; white-space: pre-wrap; }
+  .reward-box .hl  { color: #FFD700; }
+  .reward-box .hl2 { color: #00D4FF; }
+  .reward-box .hl3 { color: #4CAF50; }
+
+  /* ── FILE TREES ── */
+  .tree-grid { max-width: 980px; margin: 0 auto 48px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .tree-box  { background: #0e1428; border: 1px solid #1e2f5c; border-radius: 10px; padding: 16px; }
+  .tree-box  .tlabel { font-size: 0.69rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; }
+  .tree-box  pre { font-family: 'Courier New', monospace; font-size: 0.72rem; color: #7b8ab8; line-height: 1.7; white-space: pre-wrap; }
+
+  @media (max-width: 720px) {
+    .schema-grid, .gaps-grid, .tree-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<h1>MathQuest — Application Architecture</h1>
+<p class="subtitle">Central Core + Independent Token-Activated Modules &nbsp;·&nbsp; v2 (gaps resolved)</p>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#FFD700"></div> Core App</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#00D4FF"></div> Active Module</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#3a3a5c;border:1px dashed #5a5a8c"></div> Locked / Future</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#7B2FBE"></div> Database</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#4CAF50"></div> Frontend (Browser)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#FF6B6B"></div> Token System</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#9b59b6"></div> Shared Algorithm</div>
+</div>
+
+
+<!-- ═══════════════════════════════════════ MAIN TOPOLOGY ═══ -->
+<div style="max-width:980px;margin:0 auto;position:relative;">
+
+  <!-- Frontend -->
+  <div style="display:flex;justify-content:center;">
+    <div class="node node-fe" style="width:500px;">
+      <div class="node-label">Browser / Client</div>
+      <div class="node-title">Frontend Shell</div>
+      <ul class="node-items">
+        <li><code>core.js</code> — fetches active modules, handles JWT expiry + silent refresh</li>
+        <li><code>journey.js</code> — galaxy map, planet unlock animations</li>
+        <li><code>auth.js</code> — login / register (sends <code>guest_progress</code> on register)</li>
+        <li><code>srs_client.js</code> — guest SM-2 queue stored in <code>localStorage</code></li>
+        <li>Each module's <code>game.js</code> loaded dynamically via manifest <code>ui_script</code></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- arrow down -->
+  <div style="display:flex;justify-content:center;height:42px;align-items:center;">
+    <div class="arrow-v"><div class="line"></div><div class="label">HTTP · /api/v1/</div><div class="tip">▼</div></div>
+  </div>
+
+  <!-- DB | CORE | MODULES -->
+  <div style="display:grid;grid-template-columns:210px 1fr 230px;gap:0;align-items:start;">
+
+    <!-- LEFT: DB + tokens -->
+    <div style="display:flex;flex-direction:column;align-items:flex-end;padding-right:14px;gap:10px;padding-top:6px;">
+      <div class="node node-db" style="width:192px;">
+        <div class="node-label">Persistence</div>
+        <div class="node-title">SQLite / PostgreSQL</div>
+        <ul class="node-items">
+          <li>Core tables</li>
+          <li>Per-module tables</li>
+          <li>WAL mode (dev)</li>
+          <li>Flask <code>g</code> connection</li>
+        </ul>
+      </div>
+      <div class="node node-token" style="width:192px;">
+        <div class="node-label">Module Activation</div>
+        <div class="node-title">module_tokens</div>
+        <ul class="node-items">
+          <li>built_in = True</li>
+          <li>token_key (external)</li>
+          <li>pending_restart flag</li>
+          <li>expires_at</li>
+        </ul>
+      </div>
+      <div style="width:192px;background:#0e1428;border:1px solid #2a3060;border-radius:10px;padding:12px 14px;">
+        <div style="font-size:0.65rem;color:#FF6B6B;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px;">Restart required</div>
+        <div style="font-size:0.73rem;color:#7b8ab8;line-height:1.5;">Blueprint registration happens at app startup only. Token activation sets <code>pending_restart=True</code> until next deploy.</div>
+      </div>
+    </div>
+
+    <!-- CENTER: Core -->
+    <div style="display:flex;justify-content:center;">
+      <div class="node node-core" style="width:100%;max-width:430px;">
+        <div class="node-label">Central Node</div>
+        <div class="node-title">Core App &nbsp;·&nbsp; <code style="color:#ffd700;background:rgba(0,0,0,0.3)">app.py</code></div>
+        <ul class="node-items" style="margin-top:3px;">
+          <li><strong style="color:#e0e8ff">Auth</strong> — JWT (access 1h) + refresh tokens (30d); bcrypt passwords</li>
+          <li><strong style="color:#e0e8ff">Module Registry</strong> — auto-discovers Blueprints; logs broken imports</li>
+          <li><strong style="color:#e0e8ff">Token Validator</strong> — checks <code>module_tokens</code> at startup</li>
+          <li><strong style="color:#e0e8ff">Health Checker</strong> — tracks registered / broken / pending modules</li>
+          <li><strong style="color:#e0e8ff">Galaxy Map Shell</strong> — renders active modules as planets</li>
+          <li><strong style="color:#e0e8ff">User Wallet</strong> — coins, XP, level (cross-module, via RewardEvent)</li>
+          <li><strong style="color:#e0e8ff">Streaks &amp; Badges</strong> — shared reward engine; badges namespaced</li>
+          <li><strong style="color:#e0e8ff">RewardEvent Gateway</strong> — receives module events, writes to core tables</li>
+        </ul>
+        <div style="margin-top:12px;padding-top:10px;border-top:1px solid #2a3060;">
+          <div style="font-size:0.67rem;color:#4a5580;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px;">Core endpoints &nbsp;<span style="color:#3a4a80;font-size:0.65rem;text-transform:none;letter-spacing:0">/api/v1/</span></div>
+          <div style="font-size:0.72rem;color:#7b8ab8;line-height:1.9;font-family:'Courier New',monospace;">
+            POST auth/register &nbsp;<span style="color:#3a4a80;font-size:0.65rem;">(+ guest_progress)</span><br>
+            POST auth/login<br>
+            POST auth/refresh &nbsp;<span style="color:#3a4a80;font-size:0.65rem;">(new access token)</span><br>
+            POST auth/logout<br>
+            GET &nbsp;modules/active<br>
+            GET &nbsp;modules/health<br>
+            POST modules/activate<br>
+            GET &nbsp;user/profile
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Modules -->
+    <div style="display:flex;flex-direction:column;gap:9px;padding-left:14px;">
+
+      <div class="node node-module">
+        <div class="node-label">Module · Built-in</div>
+        <div class="node-title">math.moltiplicazioni</div>
+        <ul class="node-items">
+          <li>5 game modes</li>
+          <li>SM-2 SRS queue</li>
+          <li>Heatmap API</li>
+          <li>Boss Battle gate</li>
+          <li>Returns RewardEvent</li>
+        </ul>
+      </div>
+
+      <div class="node node-module">
+        <div class="node-label">Module · Built-in</div>
+        <div class="node-title">math.addizioni</div>
+        <ul class="node-items">
+          <li>Difficulty levels</li>
+          <li>SRS per difficulty</li>
+          <li>Returns RewardEvent</li>
+        </ul>
+      </div>
+
+      <div class="node node-module">
+        <div class="node-label">Module · Built-in</div>
+        <div class="node-title">math.sottrazioni</div>
+        <ul class="node-items">
+          <li>Adaptive levels</li>
+          <li>Returns RewardEvent</li>
+        </ul>
+      </div>
+
+      <div class="node node-locked">
+        <div class="node-label">Token-gated · Phase 2</div>
+        <div class="node-title">italiano.verbi &nbsp;🔒</div>
+        <ul class="node-items">
+          <li>Wraps existing srs.py</li>
+          <li>verbi_data.py stays at root</li>
+          <li>Requires token key</li>
+        </ul>
+      </div>
+
+      <div class="node node-locked">
+        <div class="node-label">Not yet built</div>
+        <div class="node-title">future.module &nbsp;🔮</div>
+        <ul class="node-items">
+          <li>Add folder + manifest</li>
+          <li>Insert token row → restart</li>
+        </ul>
+      </div>
+
+    </div>
+  </div><!-- end 3-col grid -->
+
+  <!-- arrow down to srs -->
+  <div style="display:flex;justify-content:center;height:42px;align-items:center;">
+    <div class="arrow-v"><div class="line2"></div><div class="label">imported by each module</div><div class="tip" style="transform:rotate(180deg);display:inline-block">▼</div></div>
+  </div>
+
+  <!-- Shared SRS -->
+  <div style="display:flex;justify-content:center;">
+    <div class="node node-srs" style="width:500px;">
+      <div class="node-label">Shared Algorithm (pure — no DB import)</div>
+      <div class="node-title"><code style="background:rgba(0,0,0,0.3);color:#c39bd3;">srs.py</code> &nbsp;—&nbsp; SM-2 Spaced Repetition</div>
+      <ul class="node-items">
+        <li>Pure functions only: <code>update(ef, reps, quality) → (new_ef, interval, new_reps)</code></li>
+        <li>No <code>database.py</code> import — DB reads/writes are each module's responsibility</li>
+        <li>Concurrent conflict: <code>last_updated</code> column in SRS tables; conservative merge in v2</li>
+      </ul>
+    </div>
+  </div>
+
+</div><!-- end topology wrapper -->
+
+
+<!-- ═══════════════════════════════════════ REWARD EVENT CONTRACT ═══ -->
+<div class="section-divider"><span>Module → Core: RewardEvent Contract</span></div>
+
+<div class="reward-box">
+  <div style="font-size:0.7rem;color:#4a5580;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Modules never import from <code>core/</code>. Every POST /answer returns this shape. The Core gateway processes it.</div>
+<pre><span class="hl"># Every module's answer endpoint returns a RewardEvent dict</span>
+<span class="hl2">RewardEvent</span> = {
+    <span class="hl3">"correct"</span>:          bool,
+    <span class="hl3">"coins"</span>:            int,           <span class="hl"># 0–3 based on speed + difficulty</span>
+    <span class="hl3">"xp"</span>:               int,           <span class="hl"># 5–15 per correct answer</span>
+    <span class="hl3">"badges_earned"</span>:    list[str],     <span class="hl"># namespaced: "math.moltiplicazioni:speed-demon"</span>
+    <span class="hl3">"streak_activity"</span>:  bool,          <span class="hl"># True = counts toward today's streak</span>
+    <span class="hl3">"srs_updated"</span>:      bool,
+    <span class="hl3">"module_data"</span>:      dict,          <span class="hl"># module-specific (heatmap update, planet unlock, …)</span>
+}
+
+<span class="hl"># Core gateway (app.py) receives this and calls:</span>
+<span class="hl2">core.models.apply_reward</span>(user_id, event)
+<span class="hl"># → updates user_wallet, user_streaks, user_badges</span>
+<span class="hl"># → no module code ever touches core tables directly</span></pre>
+</div>
+
+
+<!-- ═══════════════════════════════════════ TOKEN FLOW ═══ -->
+<div class="section-divider"><span>Module Activation Flow (requires restart)</span></div>
+
+<div class="flow-steps">
+  <div class="flow-step">
+    <div class="step-num">1</div>
+    <div class="step-text"><strong>App starts</strong><br><code>registry.load_active_modules(app)</code> called from app factory</div>
+  </div>
+  <div class="flow-step">
+    <div class="step-num">2</div>
+    <div class="step-text"><strong>DB query</strong><br>Read <code>module_tokens</code> where <code>built_in=True</code> OR (<code>is_active=True</code> AND <code>pending_restart=False</code>)</div>
+  </div>
+  <div class="flow-step">
+    <div class="step-num">3</div>
+    <div class="step-text"><strong>Blueprint import</strong><br><code>importlib.import_module()</code> per active module — failures are logged, not silent</div>
+  </div>
+  <div class="flow-step">
+    <div class="step-num">4</div>
+    <div class="step-text"><strong>Health check</strong><br><code>GET /api/v1/modules/health</code> shows registered / broken / pending status for each module</div>
+  </div>
+  <div class="flow-step">
+    <div class="step-num">5</div>
+    <div class="step-text"><strong>Galaxy map</strong><br><code>GET /api/v1/modules/active</code> → frontend renders active planets; pending shown as "coming soon"</div>
+  </div>
+  <div class="flow-step">
+    <div class="step-num">6</div>
+    <div class="step-text"><strong>Add new module</strong><br>Create folder + manifest → insert token row → <strong>restart</strong> → live. Zero core code changes.</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════ API TABLE ═══ -->
+<div class="section-divider"><span>API Endpoints — versioned at /api/v1/</span></div>
+
+<div class="tbl-wrap">
+<table>
+  <thead>
+    <tr><th>Method</th><th>Endpoint</th><th>Owner</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="method post">POST</span></td><td><code>/api/v1/auth/register</code></td><td class="owner-core">Core</td><td class="desc">Create account; optional <code>guest_progress</code> payload migrates localStorage state</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/api/v1/auth/login</code></td><td class="owner-core">Core</td><td class="desc">Authenticate → returns access token (1h) + refresh token (30d)</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/api/v1/auth/refresh</code></td><td class="owner-core">Core</td><td class="desc">Exchange valid refresh token → new access token (silent renewal in <code>core.js</code>)</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/api/v1/auth/logout</code></td><td class="owner-core">Core</td><td class="desc">Revoke refresh token</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/api/v1/modules/active</code></td><td class="owner-core">Core</td><td class="desc">List registered + healthy module manifests (id, name, icon, planet_order, ui_script)</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/api/v1/modules/health</code></td><td class="owner-core">Core</td><td class="desc">All known modules with status: registered | broken | pending_restart</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/api/v1/modules/activate</code></td><td class="owner-core">Core</td><td class="desc">Activate via token key → sets <code>pending_restart=True</code>; live after next deploy</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/api/v1/user/profile</code></td><td class="owner-core">Core</td><td class="desc">Wallet (coins, XP, level), streaks, badge count, role</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/api/v1/user/badges</code></td><td class="owner-core">Core</td><td class="desc">All earned badges across all modules (namespaced IDs)</td></tr>
+    <tr style="border-top:1px solid #1e2f5c;">
+      <td><span class="method get">GET</span></td><td><code>/api/v1/modules/&lt;id&gt;/manifest</code></td><td class="owner-module">Module</td><td class="desc">Module metadata and capabilities</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/api/v1/modules/&lt;id&gt;/session</code></td><td class="owner-module">Module</td><td class="desc">Generate question session (SRS-scheduled or mode-specific)</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/api/v1/modules/&lt;id&gt;/answer</code></td><td class="owner-module">Module</td><td class="desc">Submit answer → updates module SRS table → returns <strong>RewardEvent</strong> for Core gateway</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/api/v1/modules/&lt;id&gt;/stats</code></td><td class="owner-module">Module</td><td class="desc">Per-user stats: heatmap, accuracy, total attempts per fact</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/api/v1/modules/&lt;id&gt;/progress</code></td><td class="owner-module">Module</td><td class="desc">Planet/level unlock status</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/api/v1/modules/&lt;id&gt;/boss-battle</code></td><td class="owner-module">Module</td><td class="desc">Submit boss battle result → unlock next planet if ≥ 80% → returns RewardEvent</td></tr>
+  </tbody>
+</table>
+</div>
+
+
+<!-- ═══════════════════════════════════════ DB SCHEMA ═══ -->
+<div class="section-divider"><span>Database Ownership</span></div>
+
+<div class="schema-grid">
+  <div class="schema-card core">
+    <h3>Core-owned tables</h3>
+    <ul class="tbl-list">
+      <li><span class="tname">users</span><span>— id, username, email, password_hash, <strong>role</strong>, created_at</span></li>
+      <li><span class="tname">refresh_tokens</span><span>— token_hash, user_id, expires_at, revoked</span></li>
+      <li><span class="tname">module_tokens</span><span>— module_id, built_in, pending_restart, is_active</span></li>
+      <li><span class="tname">user_wallet</span><span>— coins, xp, level</span></li>
+      <li><span class="tname">user_streaks</span><span>— current_streak, longest_streak, shields</span></li>
+      <li><span class="tname">user_badges</span><span>— badge_id (<em>namespaced</em>), module_id, earned_at</span></li>
+    </ul>
+    <div style="margin-top:10px;padding-top:8px;border-top:1px solid #2a3060;font-size:0.72rem;color:#4a5580;">Built-in module rows seeded by <code>database.init_db()</code> via <code>INSERT OR IGNORE</code></div>
+  </div>
+  <div class="schema-card module">
+    <h3>Module-owned tables (example)</h3>
+    <ul class="tbl-list">
+      <li><span class="tname mod">moltiplicazioni_progress</span><span>— table_number, status, mastery</span></li>
+      <li><span class="tname mod">moltiplicazioni_srs</span><span>— ef, interval, reps, <strong>last_updated</strong></span></li>
+      <li><span class="tname mod">addizioni_progress</span><span>— difficulty level status</span></li>
+      <li><span class="tname mod">addizioni_srs</span><span>— SM-2 queue per difficulty</span></li>
+      <li><span class="tname mod">verbi_srs · verbi_errori</span><span>— Phase 2 (italiano.verbi)</span></li>
+    </ul>
+    <div style="margin-top:10px;padding-top:8px;border-top:1px solid #1e2f5c;font-size:0.72rem;color:#4a5580;"><code>last_updated</code> on SRS rows enables concurrent session conflict detection</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════ RESOLVED GAPS ═══ -->
+<div class="section-divider"><span>Design Decisions — 15 Gaps Identified &amp; Resolved</span></div>
+
+<div class="gaps-grid">
+
+  <div class="gap-card resolved">
+    <h4>✓ Blueprint registration is static</h4>
+    <p>Flask cannot register Blueprints at runtime. <strong>Decision:</strong> token activation sets <code>pending_restart=True</code>; module goes live after next deploy. Frontend shows "coming soon" state. This is documented, not hidden.</p>
+  </div>
+
+  <div class="gap-card resolved">
+    <h4>✓ JWT vs Flask-Login conflict</h4>
+    <p>JWT is already implemented in <code>app.py</code>. <strong>Decision:</strong> keep JWT (stateless, already working). Remove Flask-Login from requirements. Add <code>POST /api/v1/auth/refresh</code> and <code>refresh_tokens</code> table.</p>
+  </div>
+
+  <div class="gap-card resolved">
+    <h4>✓ Module → Core write mechanism</h4>
+    <p>Modules cannot import from <code>core/</code>. <strong>Decision:</strong> every <code>POST /answer</code> returns a <strong>RewardEvent</strong> dict. The Core API gateway calls <code>core.models.apply_reward()</code>. Zero coupling.</p>
+  </div>
+
+  <div class="gap-card resolved">
+    <h4>✓ srs.py imports database.py</h4>
+    <p><strong>Decision:</strong> refactor <code>srs.py</code> to pure functions only (no DB imports). Each module's <code>models.py</code> handles SRS table reads/writes. The algorithm is shared; the storage is not.</p>
+  </div>
+
+  <div class="gap-card resolved">
+    <h4>✓ Guest → registered user migration</h4>
+    <p><code>POST /api/v1/auth/register</code> accepts optional <code>guest_progress</code> payload. Merges: planet unlocks (if boss score provided) + SRS state. Coins/XP not migrated (anti-abuse). <code>core.js</code> sends this automatically.</p>
+  </div>
+
+  <div class="gap-card resolved">
+    <h4>✓ SQLite per-request connections</h4>
+    <p><strong>Decision:</strong> use Flask's <code>g</code> object — one connection opened per request, closed in <code>@app.teardown_appcontext</code>. Enable WAL mode (<code>PRAGMA journal_mode=WAL</code>) for concurrent reads. Migrate to PostgreSQL before public launch.</p>
+  </div>
+
+  <div class="gap-card resolved">
+    <h4>✓ Universal game.html injection</h4>
+    <p>Each module manifest includes <code>"ui_script": "/static/modules/&lt;id&gt;/game.js"</code>. <code>game.html</code> reads the active module from the URL, fetches its manifest, then <code>import()</code>s the declared script dynamically. No pre-bundling needed.</p>
+  </div>
+
+  <div class="gap-card resolved">
+    <h4>✓ No user roles in schema</h4>
+    <p><strong>Decision:</strong> add <code>role TEXT DEFAULT 'student'</code> to <code>users</code> table now. Values: <code>student | teacher | parent | admin</code>. Teacher/parent dashboards are Phase 3; the schema is ready.</p>
+  </div>
+
+  <div class="gap-card resolved">
+    <h4>✓ Badge ID namespace collision</h4>
+    <p>Badge IDs stored as <code>"&lt;module_id&gt;:&lt;slug&gt;"</code> (e.g. <code>"math.moltiplicazioni:speed-demon"</code>). The <code>UNIQUE(user_id, badge_id)</code> constraint now correctly scopes per module. No cross-module collision possible.</p>
+  </div>
+
+  <div class="gap-card resolved">
+    <h4>✓ No module health endpoint</h4>
+    <p>Added <code>GET /api/v1/modules/health</code>. Returns status for every known module: <code>registered</code> (live), <code>broken</code> (import failed — with error message), <code>pending_restart</code> (token inserted, not yet loaded).</p>
+  </div>
+
+  <div class="gap-card resolved">
+    <h4>✓ No API versioning</h4>
+    <p>All endpoints now use <code>/api/v1/</code> prefix. Breaking changes will use <code>/api/v2/</code>. Old versions deprecated with a sunset header before removal.</p>
+  </div>
+
+  <div class="gap-card resolved">
+    <h4>✓ module_tokens seeding not described</h4>
+    <p><code>database.init_db()</code> seeds built-in module rows with <code>INSERT OR IGNORE INTO module_tokens (module_id, built_in) VALUES (...)</code>. Safe to run on every startup — idempotent.</p>
+  </div>
+
+  <div class="gap-card resolved">
+    <h4>✓ italiano_verbi breaks imports</h4>
+    <p><code>verbi_data.py</code> stays at the project root during Phase 1. The <code>italiano_verbi</code> module imports it from there. File only moves into the module folder when the Italian module is fully ported (Phase 2).</p>
+  </div>
+
+  <div class="gap-card resolved">
+    <h4>✓ No JWT refresh / expiry handling</h4>
+    <p>Access tokens expire in 1h. <code>core.js</code> intercepts 401 responses, calls <code>POST /api/v1/auth/refresh</code> with the stored refresh token, retries the original request. If refresh also fails, redirects to login.</p>
+  </div>
+
+  <div class="gap-card limited">
+    <h4>⚠ Concurrent session conflicts</h4>
+    <p>Two devices reviewing the same SRS fact simultaneously: last write wins. <code>last_updated</code> column added to all SRS tables. Conservative merge (take lower quality score) planned for v2 — acceptable limitation for v1.</p>
+  </div>
+
+</div>
+
+
+<!-- ═══════════════════════════════════════ FILE TREE ═══ -->
+<div class="section-divider"><span>File Structure</span></div>
+
+<div class="tree-grid">
+  <div class="tree-box">
+    <div class="tlabel" style="color:#FFD700;">Core &amp; Shared</div>
+    <pre>tabelline/
+├── <span style="color:#FFD700">app.py</span>            app factory
+├── <span style="color:#b06fff">database.py</span>       core DB + seeding
+├── <span style="color:#9b59b6">srs.py</span>            SM-2 pure functions
+├── verbi_data.py     stays here (Phase 1)
+├── requirements.txt  PyJWT bcrypt flask-wtf
+│
+├── <span style="color:#FFD700">core/</span>
+│   ├── auth.py       JWT helpers + refresh
+│   ├── registry.py   loader + health checker
+│   └── models.py     core DB tables
+│
+├── static/
+│   ├── css/style.css  space theme
+│   └── js/
+│       ├── core.js    loader + JWT refresh
+│       ├── journey.js galaxy map
+│       ├── auth.js    + guest_progress send
+│       └── srs_client.js  guest SM-2
+│
+└── templates/
+    ├── base.html      JWT expiry handler
+    ├── landing.html   galaxy map
+    ├── game.html      dynamic ui_script load
+    └── auth/
+        ├── login.html
+        └── register.html</pre>
+  </div>
+
+  <div class="tree-box">
+    <div class="tlabel" style="color:#00D4FF;">Modules (each independent)</div>
+    <pre>modules/
+│
+├── <span style="color:#00D4FF">math_moltiplicazioni/</span>
+│   ├── __init__.py    Blueprint
+│   ├── api.py         /api/v1/modules/moltiplicazioni/*
+│   ├── models.py      progress + srs tables
+│   ├── game_logic.py  sessions, SM-2, RewardEvent
+│   ├── static/
+│   │   └── game.js    ← loaded via ui_script
+│   └── manifest.json  incl. ui_script field
+│
+├── <span style="color:#00D4FF">math_addizioni/</span>      same pattern
+├── <span style="color:#00D4FF">math_sottrazioni/</span>    same pattern
+│
+├── <span style="color:#5a5a8c">italiano_verbi/  🔒 Phase 2</span>
+│   ├── api.py         imports verbi_data from root
+│   ├── models.py
+│   └── manifest.json  built_in=False, needs token
+│
+└── <span style="color:#3a3a5c">future_module/   🔮 not yet built</span>
+    ├── api.py
+    └── manifest.json</pre>
+  </div>
+</div>
+
+<p style="text-align:center;font-size:0.7rem;color:#3a4060;padding-bottom:24px;">
+  MathQuest Architecture v2 — gaps resolved 2026-04-29
+</p>
+
+</body>
+</html>
