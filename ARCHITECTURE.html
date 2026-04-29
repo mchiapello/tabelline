@@ -324,33 +324,131 @@
 </div>
 
 
-<!-- ═══════════════════════════════════════ TOKEN FLOW ═══ -->
-<div class="section-divider"><span>Module Activation Flow (requires restart)</span></div>
+<!-- ═══════════════════════════════════════ THREE-LAYER ACTIVATION ═══ -->
+<div class="section-divider"><span>Three-Layer Module Activation Model</span></div>
 
-<div class="flow-steps">
+<div style="max-width:980px;margin:0 auto 16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+
+  <div style="background:#12183a;border:2px solid #FFD700;border-radius:12px;padding:16px;">
+    <div style="font-size:0.66rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#FFD700;margin-bottom:8px;">Layer 1 — Global (Operator)</div>
+    <div style="font-size:0.75rem;color:#9aa8cc;line-height:1.7;">
+      <strong style="color:#e0e8ff">Table:</strong> <code>module_tokens</code><br>
+      <strong style="color:#e0e8ff">Question:</strong> Is Blueprint registered?<br>
+      <strong style="color:#e0e8ff">Scope:</strong> Everyone or no one<br>
+      <strong style="color:#e0e8ff">Restart:</strong> Required<br>
+      <strong style="color:#e0e8ff">Actor:</strong> Platform operator<br><br>
+      Prerequisite for all access. A module that isn't registered here cannot be used by anyone.
+    </div>
+  </div>
+
+  <div style="background:#1a1a0e;border:2px solid #FFB300;border-radius:12px;padding:16px;">
+    <div style="font-size:0.66rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#FFB300;margin-bottom:8px;">Layer 2 — Organisation (School)</div>
+    <div style="font-size:0.75rem;color:#9aa8cc;line-height:1.7;">
+      <strong style="color:#e0e8ff">Tables:</strong> <code>organizations</code> + <code>org_module_access</code><br>
+      <strong style="color:#e0e8ff">Question:</strong> Has the school purchased it?<br>
+      <strong style="color:#e0e8ff">Scope:</strong> All org members<br>
+      <strong style="color:#e0e8ff">Restart:</strong> Not required — instant<br>
+      <strong style="color:#e0e8ff">Actor:</strong> School admin redeems token<br><br>
+      One token grants access to every current and future member of the organisation.
+    </div>
+  </div>
+
+  <div style="background:#0e1f30;border:2px solid #00D4FF;border-radius:12px;padding:16px;">
+    <div style="font-size:0.66rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#00D4FF;margin-bottom:8px;">Layer 3 — Per-User (Individual)</div>
+    <div style="font-size:0.75rem;color:#9aa8cc;line-height:1.7;">
+      <strong style="color:#e0e8ff">Tables:</strong> <code>user_access_tokens</code> + <code>user_module_access</code><br>
+      <strong style="color:#e0e8ff">Question:</strong> Has this user purchased it?<br>
+      <strong style="color:#e0e8ff">Scope:</strong> That user only<br>
+      <strong style="color:#e0e8ff">Restart:</strong> Not required — instant<br>
+      <strong style="color:#e0e8ff">Actor:</strong> User redeems personal token<br><br>
+      Free modules auto-granted at registration. Paid modules require a personal token.
+    </div>
+  </div>
+
+</div>
+
+<div style="max-width:980px;margin:0 auto 24px;background:#0a1014;border:1px solid #1e2f5c;border-radius:8px;padding:13px 16px;font-size:0.74rem;color:#7b8ab8;line-height:1.7;">
+  Access = <strong style="color:#FFD700">Layer 1 registered</strong> AND
+  (<strong style="color:#e0e8ff">free:true</strong> OR <strong style="color:#FFB300">org has access</strong> OR <strong style="color:#00D4FF">user has access</strong>)<br>
+  <code>GET /api/v1/modules/active</code> runs this three-condition check for the current user on every request.
+  Guests see only <code>free:true</code> modules. New student joining a school inherits all org Layer 2 grants automatically.
+</div>
+
+<!-- Scenario table -->
+<div class="tbl-wrap" style="margin-bottom:28px;">
+<table>
+  <thead><tr><th>Scenario</th><th>Layer</th><th>Token issued to</th><th>Who benefits</th><th>Restart?</th></tr></thead>
+  <tbody>
+    <tr><td>Free built-in module</td><td style="color:#FFD700">1 + free:true</td><td>Nobody</td><td class="desc">All users automatically</td><td class="desc">No</td></tr>
+    <tr><td>School buys moltiplicazioni</td><td style="color:#FFB300">2 — Org</td><td>School admin (1 token)</td><td class="desc">Every student in the school</td><td class="desc">No</td></tr>
+    <tr><td>Student buys addizioni</td><td style="color:#00D4FF">3 — User</td><td>Individual student</td><td class="desc">That student only</td><td class="desc">No</td></tr>
+    <tr><td>Teacher grants module to student</td><td style="color:#00D4FF">3 — User</td><td>That student</td><td class="desc">That student only</td><td class="desc">No</td></tr>
+    <tr><td>New student joins school</td><td style="color:#FFB300">2 — inherited</td><td>Nobody</td><td class="desc">Inherits all org grants via membership</td><td class="desc">No</td></tr>
+    <tr><td>Deploy a new module</td><td style="color:#FFD700">1 — Operator</td><td>Operator</td><td class="desc">Nobody until Layer 2/3 grants issued</td><td class="desc">Yes</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- Layer 1 flow -->
+<div class="section-divider"><span>Layer 1 — Operator Global Activation (restart required)</span></div>
+<div class="flow-steps" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
   <div class="flow-step">
-    <div class="step-num">1</div>
-    <div class="step-text"><strong>App starts</strong><br><code>registry.load_active_modules(app)</code> called from app factory</div>
+    <div class="step-num" style="background:#FFD700">1</div>
+    <div class="step-text"><strong>App starts</strong><br><code>registry.load_active_modules(app)</code></div>
   </div>
   <div class="flow-step">
-    <div class="step-num">2</div>
-    <div class="step-text"><strong>DB query</strong><br>Read <code>module_tokens</code> where <code>built_in=True</code> OR (<code>is_active=True</code> AND <code>pending_restart=False</code>)</div>
+    <div class="step-num" style="background:#FFD700">2</div>
+    <div class="step-text"><strong>DB query</strong><br><code>module_tokens</code> where <code>built_in=True</code> OR <code>is_active=True AND pending_restart=False</code></div>
   </div>
   <div class="flow-step">
-    <div class="step-num">3</div>
-    <div class="step-text"><strong>Blueprint import</strong><br><code>importlib.import_module()</code> per active module — failures are logged, not silent</div>
+    <div class="step-num" style="background:#FFD700">3</div>
+    <div class="step-text"><strong>Blueprint import</strong><br>Failures logged as <code>broken</code>, not silent</div>
   </div>
   <div class="flow-step">
-    <div class="step-num">4</div>
-    <div class="step-text"><strong>Health check</strong><br><code>GET /api/v1/modules/health</code> shows registered / broken / pending status for each module</div>
+    <div class="step-num" style="background:#FFD700">4</div>
+    <div class="step-text"><strong>Health snapshot</strong><br><code>GET /api/v1/modules/health</code> → registered / broken / pending</div>
+  </div>
+</div>
+
+<!-- Layer 2 flow -->
+<div class="section-divider"><span>Layer 2 — Organisation Activation (instant, no restart)</span></div>
+<div class="flow-steps" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+  <div class="flow-step">
+    <div class="step-num" style="background:#FFB300;color:#0a0a1a">1</div>
+    <div class="step-text"><strong>Admin issues org token</strong><br><code>POST /api/v1/admin/access-tokens/generate</code><br>Body: module_id + <strong>org_id</strong> + expires_at</div>
   </div>
   <div class="flow-step">
-    <div class="step-num">5</div>
-    <div class="step-text"><strong>Galaxy map</strong><br><code>GET /api/v1/modules/active</code> → frontend renders active planets; pending shown as "coming soon"</div>
+    <div class="step-num" style="background:#FFB300;color:#0a0a1a">2</div>
+    <div class="step-text"><strong>Token hashed</strong><br>Stored in <code>user_access_tokens</code>. Plaintext returned <strong>once</strong> to admin.</div>
   </div>
   <div class="flow-step">
-    <div class="step-num">6</div>
-    <div class="step-text"><strong>Add new module</strong><br>Create folder + manifest → insert token row → <strong>restart</strong> → live. Zero core code changes.</div>
+    <div class="step-num" style="background:#FFB300;color:#0a0a1a">3</div>
+    <div class="step-text"><strong>School admin redeems</strong><br><code>POST /api/v1/org/&lt;id&gt;/modules/activate</code><br>→ row in <code>org_module_access</code></div>
+  </div>
+  <div class="flow-step">
+    <div class="step-num" style="background:#FFB300;color:#0a0a1a">4</div>
+    <div class="step-text"><strong>All org members gain access</strong><br>Instantly. New students joining later inherit it automatically via org membership.</div>
+  </div>
+</div>
+
+<!-- Layer 3 flow -->
+<div class="section-divider"><span>Layer 3 — Per-User Activation (instant, no restart)</span></div>
+<div class="flow-steps" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+  <div class="flow-step">
+    <div class="step-num" style="background:#00D4FF;color:#0a0a1a">1</div>
+    <div class="step-text"><strong>Admin issues user token</strong><br><code>POST /api/v1/admin/access-tokens/generate</code><br>Body: module_id + <strong>user_email</strong> + expires_at</div>
+  </div>
+  <div class="flow-step">
+    <div class="step-num" style="background:#00D4FF;color:#0a0a1a">2</div>
+    <div class="step-text"><strong>Token hashed</strong><br>Stored in <code>user_access_tokens</code>. Plaintext returned <strong>once</strong> to admin.</div>
+  </div>
+  <div class="flow-step">
+    <div class="step-num" style="background:#00D4FF;color:#0a0a1a">3</div>
+    <div class="step-text"><strong>User redeems</strong><br><code>POST /api/v1/user/modules/activate</code><br>→ row in <code>user_module_access</code></div>
+  </div>
+  <div class="flow-step">
+    <div class="step-num" style="background:#00D4FF;color:#0a0a1a">4</div>
+    <div class="step-text"><strong>Instant access</strong><br>Token marked used (<code>max_uses=1</code>). Only this user benefits.</div>
   </div>
 </div>
 
@@ -364,22 +462,31 @@
     <tr><th>Method</th><th>Endpoint</th><th>Owner</th><th>Description</th></tr>
   </thead>
   <tbody>
-    <tr><td><span class="method post">POST</span></td><td><code>/api/v1/auth/register</code></td><td class="owner-core">Core</td><td class="desc">Create account; optional <code>guest_progress</code> payload migrates localStorage state</td></tr>
-    <tr><td><span class="method post">POST</span></td><td><code>/api/v1/auth/login</code></td><td class="owner-core">Core</td><td class="desc">Authenticate → returns access token (1h) + refresh token (30d)</td></tr>
-    <tr><td><span class="method post">POST</span></td><td><code>/api/v1/auth/refresh</code></td><td class="owner-core">Core</td><td class="desc">Exchange valid refresh token → new access token (silent renewal in <code>core.js</code>)</td></tr>
+    <tr><td colspan="4" style="background:#0a0f1e;color:#4a5580;font-size:0.68rem;padding:6px 13px;letter-spacing:0.06em;">AUTH</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/api/v1/auth/register</code></td><td class="owner-core">Core</td><td class="desc">Create account; auto-grants <code>free:true</code> modules; optional <code>guest_progress</code> migration</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/api/v1/auth/login</code></td><td class="owner-core">Core</td><td class="desc">Authenticate → access token (1h) + refresh token (30d)</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/api/v1/auth/refresh</code></td><td class="owner-core">Core</td><td class="desc">Exchange refresh token → new access token (silent renewal)</td></tr>
     <tr><td><span class="method post">POST</span></td><td><code>/api/v1/auth/logout</code></td><td class="owner-core">Core</td><td class="desc">Revoke refresh token</td></tr>
-    <tr><td><span class="method get">GET</span></td><td><code>/api/v1/modules/active</code></td><td class="owner-core">Core</td><td class="desc">List registered + healthy module manifests (id, name, icon, planet_order, ui_script)</td></tr>
-    <tr><td><span class="method get">GET</span></td><td><code>/api/v1/modules/health</code></td><td class="owner-core">Core</td><td class="desc">All known modules with status: registered | broken | pending_restart</td></tr>
-    <tr><td><span class="method post">POST</span></td><td><code>/api/v1/modules/activate</code></td><td class="owner-core">Core</td><td class="desc">Activate via token key → sets <code>pending_restart=True</code>; live after next deploy</td></tr>
+    <tr><td colspan="4" style="background:#0a0f1e;color:#4a5580;font-size:0.68rem;padding:6px 13px;letter-spacing:0.06em;">MODULE REGISTRY (OPERATOR — Layer 1)</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/api/v1/modules/active</code></td><td class="owner-core">Core</td><td class="desc">User-aware: registered ∩ user-accessible modules. Guest sees free modules only.</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/api/v1/modules/health</code></td><td class="owner-core">Core</td><td class="desc">Operator view: registered | broken | pending_restart per module</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/api/v1/modules/activate</code></td><td class="owner-core">Core</td><td class="desc">Global activation via operator token → <code>pending_restart=True</code>; live after restart</td></tr>
+    <tr><td colspan="4" style="background:#0a0f1e;color:#4a5580;font-size:0.68rem;padding:6px 13px;letter-spacing:0.06em;">USER MODULE ACCESS (USER — Layer 2)</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/api/v1/user/modules/active</code></td><td class="owner-core">Core</td><td class="desc">Explicit per-user module list with grant source (system / token / teacher)</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/api/v1/user/modules/activate</code></td><td class="owner-core">Core</td><td class="desc">User redeems personal token → instant access, no restart. Token marked used.</td></tr>
+    <tr><td colspan="4" style="background:#0a0f1e;color:#4a5580;font-size:0.68rem;padding:6px 13px;letter-spacing:0.06em;">USER PROFILE</td></tr>
     <tr><td><span class="method get">GET</span></td><td><code>/api/v1/user/profile</code></td><td class="owner-core">Core</td><td class="desc">Wallet (coins, XP, level), streaks, badge count, role</td></tr>
-    <tr><td><span class="method get">GET</span></td><td><code>/api/v1/user/badges</code></td><td class="owner-core">Core</td><td class="desc">All earned badges across all modules (namespaced IDs)</td></tr>
-    <tr style="border-top:1px solid #1e2f5c;">
-      <td><span class="method get">GET</span></td><td><code>/api/v1/modules/&lt;id&gt;/manifest</code></td><td class="owner-module">Module</td><td class="desc">Module metadata and capabilities</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/api/v1/user/badges</code></td><td class="owner-core">Core</td><td class="desc">All earned badges (namespaced IDs)</td></tr>
+    <tr><td colspan="4" style="background:#0a0f1e;color:#4a5580;font-size:0.68rem;padding:6px 13px;letter-spacing:0.06em;">ADMIN — TOKEN ISSUANCE</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/api/v1/admin/access-tokens/generate</code></td><td class="owner-core">Core</td><td class="desc">Generate personal token for a user+module. Returns plaintext once. Stores hash only.</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/api/v1/admin/access-tokens</code></td><td class="owner-core">Core</td><td class="desc">List all issued tokens: module, issued_to, used/unused, expiry</td></tr>
+    <tr><td colspan="4" style="background:#0a0f1e;color:#4a5580;font-size:0.68rem;padding:6px 13px;letter-spacing:0.06em;">MODULE ENDPOINTS (per module)</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/api/v1/modules/&lt;id&gt;/manifest</code></td><td class="owner-module">Module</td><td class="desc">Module metadata</td></tr>
     <tr><td><span class="method get">GET</span></td><td><code>/api/v1/modules/&lt;id&gt;/session</code></td><td class="owner-module">Module</td><td class="desc">Generate question session (SRS-scheduled or mode-specific)</td></tr>
-    <tr><td><span class="method post">POST</span></td><td><code>/api/v1/modules/&lt;id&gt;/answer</code></td><td class="owner-module">Module</td><td class="desc">Submit answer → updates module SRS table → returns <strong>RewardEvent</strong> for Core gateway</td></tr>
-    <tr><td><span class="method get">GET</span></td><td><code>/api/v1/modules/&lt;id&gt;/stats</code></td><td class="owner-module">Module</td><td class="desc">Per-user stats: heatmap, accuracy, total attempts per fact</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/api/v1/modules/&lt;id&gt;/answer</code></td><td class="owner-module">Module</td><td class="desc">Submit answer → SRS update → returns RewardEvent to Core gateway</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/api/v1/modules/&lt;id&gt;/stats</code></td><td class="owner-module">Module</td><td class="desc">Per-user stats: heatmap, accuracy, attempts per fact</td></tr>
     <tr><td><span class="method get">GET</span></td><td><code>/api/v1/modules/&lt;id&gt;/progress</code></td><td class="owner-module">Module</td><td class="desc">Planet/level unlock status</td></tr>
-    <tr><td><span class="method post">POST</span></td><td><code>/api/v1/modules/&lt;id&gt;/boss-battle</code></td><td class="owner-module">Module</td><td class="desc">Submit boss battle result → unlock next planet if ≥ 80% → returns RewardEvent</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/api/v1/modules/&lt;id&gt;/boss-battle</code></td><td class="owner-module">Module</td><td class="desc">Boss battle result → unlock next planet if ≥ 80% → RewardEvent</td></tr>
   </tbody>
 </table>
 </div>
@@ -388,19 +495,34 @@
 <!-- ═══════════════════════════════════════ DB SCHEMA ═══ -->
 <div class="section-divider"><span>Database Ownership</span></div>
 
-<div class="schema-grid">
-  <div class="schema-card core">
-    <h3>Core-owned tables</h3>
+<div style="max-width:980px;margin:0 auto 14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+
+  <div class="schema-card core" style="grid-column:1;">
+    <h3>Core — Auth &amp; Identity</h3>
     <ul class="tbl-list">
-      <li><span class="tname">users</span><span>— id, username, email, password_hash, <strong>role</strong>, created_at</span></li>
-      <li><span class="tname">refresh_tokens</span><span>— token_hash, user_id, expires_at, revoked</span></li>
-      <li><span class="tname">module_tokens</span><span>— module_id, built_in, pending_restart, is_active</span></li>
+      <li><span class="tname">users</span><span>— id, username, email, password_hash, <strong>role</strong></span></li>
+      <li><span class="tname">refresh_tokens</span><span>— token_hash, expires_at, revoked</span></li>
       <li><span class="tname">user_wallet</span><span>— coins, xp, level</span></li>
-      <li><span class="tname">user_streaks</span><span>— current_streak, longest_streak, shields</span></li>
-      <li><span class="tname">user_badges</span><span>— badge_id (<em>namespaced</em>), module_id, earned_at</span></li>
+      <li><span class="tname">user_streaks</span><span>— current/longest streak, shields</span></li>
+      <li><span class="tname">user_badges</span><span>— namespaced badge_id, earned_at</span></li>
     </ul>
-    <div style="margin-top:10px;padding-top:8px;border-top:1px solid #2a3060;font-size:0.72rem;color:#4a5580;">Built-in module rows seeded by <code>database.init_db()</code> via <code>INSERT OR IGNORE</code></div>
   </div>
+
+  <div class="schema-card" style="background:#1a1410;border:1px solid #FF6B6B;">
+    <h3 style="color:#FF6B6B;">Core — Access Control (3 layers)</h3>
+    <ul class="tbl-list">
+      <li><span class="tname" style="color:#FFD700">module_tokens</span><span>— Layer 1: global Blueprint registry</span></li>
+      <li><span class="tname" style="color:#FFB300">organizations</span><span>— Layer 2: school/group entity</span></li>
+      <li><span class="tname" style="color:#FFB300">organization_members</span><span>— user ↔ org membership + role</span></li>
+      <li><span class="tname" style="color:#FFB300">org_module_access</span><span>— org-level module grants</span></li>
+      <li><span class="tname" style="color:#00D4FF">user_access_tokens</span><span>— issued tokens (hashed, single-use)</span></li>
+      <li><span class="tname" style="color:#00D4FF">user_module_access</span><span>— Layer 3: per-user grants</span></li>
+    </ul>
+    <div style="margin-top:8px;padding-top:8px;border-top:1px solid #3a2010;font-size:0.7rem;color:#4a5580;">
+      Access check: L1 registered AND (free OR L2 org OR L3 user)
+    </div>
+  </div>
+
   <div class="schema-card module">
     <h3>Module-owned tables (example)</h3>
     <ul class="tbl-list">
@@ -408,10 +530,11 @@
       <li><span class="tname mod">moltiplicazioni_srs</span><span>— ef, interval, reps, <strong>last_updated</strong></span></li>
       <li><span class="tname mod">addizioni_progress</span><span>— difficulty level status</span></li>
       <li><span class="tname mod">addizioni_srs</span><span>— SM-2 queue per difficulty</span></li>
-      <li><span class="tname mod">verbi_srs · verbi_errori</span><span>— Phase 2 (italiano.verbi)</span></li>
+      <li><span class="tname mod">verbi_srs · verbi_errori</span><span>— Phase 2</span></li>
     </ul>
-    <div style="margin-top:10px;padding-top:8px;border-top:1px solid #1e2f5c;font-size:0.72rem;color:#4a5580;"><code>last_updated</code> on SRS rows enables concurrent session conflict detection</div>
+    <div style="margin-top:8px;padding-top:8px;border-top:1px solid #1e2f5c;font-size:0.7rem;color:#4a5580;"><code>last_updated</code> enables concurrent session conflict detection</div>
   </div>
+
 </div>
 
 

@@ -661,7 +661,7 @@ The app is structured as a **central core** with **independent service modules**
 
 #### Module Manifest (`manifest.json`)
 
-Each module ships a manifest that describes itself to the core. The `ui_script` field tells `game.html` which JS file to dynamically import for that module's game UI — this is how the universal game shell loads module-specific interfaces without pre-bundling them.
+Each module ships a manifest that describes itself to the core. The `ui_script` field tells `game.html` which JS file to dynamically import for that module's game UI. The `free` field determines whether the module is accessible to all users without a personal token.
 
 ```json
 {
@@ -672,34 +672,111 @@ Each module ships a manifest that describes itself to the core. The `ui_script` 
   "icon": "🪐",
   "planet_order": 1,
   "built_in": true,
+  "free": true,
   "api_prefix": "/api/v1/modules/moltiplicazioni",
   "ui_script": "/static/modules/moltiplicazioni/game.js",
   "dependencies": []
 }
 ```
 
-#### Token Activation Flow
+#### Three-Layer Activation Model
+
+Module access is controlled at three independent levels:
 
 ```
-1. App starts
-2. Core reads module_tokens table → finds rows where built_in=True OR is_active=True
-3. Each active token → Blueprint imported and app.register_blueprint(bp) called
-4. Module health checked: if import fails, module logged as broken (not silently skipped)
-5. GET /api/v1/modules/active → returns registered + healthy module manifests
-6. GET /api/v1/modules/health → returns status of all known modules (registered/broken/pending)
-7. Frontend renders galaxy map showing only active modules
-8. Locked/pending modules shown as greyed-out "coming soon" planets
+Layer 1 — Global (operator):       module_tokens table
+  Is the Blueprint registered in the app?
+  Requires: server restart
+  Scope: platform-wide (everyone or no one)
+
+Layer 2 — Organisation (school):   org_module_access table
+  Has the user's school/group purchased this module?
+  Requires: org admin redeems a token → instant, no restart
+  Scope: all current and future members of the organisation
+
+Layer 3 — Per-user (individual):   user_module_access table
+  Has this specific user purchased or been granted this module?
+  Requires: user redeems a personal token → instant, no restart
+  Scope: that user only
 ```
 
-To activate a new module:
-```
-POST /api/v1/modules/activate
-Body: { "token": "ITALIANO-XXXX-YYYY" }
-→ validates token, inserts into module_tokens with pending_restart=True
-→ returns { "status": "pending_restart", "module": "italiano.verbi" }
+A module is accessible when Layer 1 is satisfied AND at least one of the following is true:
+- `free: true` in the manifest (auto-granted to everyone)
+- User's organisation has access (Layer 2)
+- User has personal access (Layer 3)
+
+```python
+def user_can_access_module(user_id, module_id):
+    if not registry.is_registered(module_id):      # Layer 1
+        return False
+    if manifest(module_id).free:
+        return True
+    if db.exists("org_module_access",              # Layer 2
+                 org_id=IN(user_orgs(user_id)),
+                 module_id=module_id):
+        return True
+    if db.exists("user_module_access",             # Layer 3
+                 user_id=user_id, module_id=module_id):
+        return True
+    return False
 ```
 
-Module is live after next server restart.
+#### Real-world scenarios
+
+| Scenario | Layer used | Token issued to | Who benefits |
+|---|---|---|---|
+| Free built-in module (moltiplicazioni) | Layer 1 + `free:true` | Nobody | All users automatically |
+| School buys moltiplicazioni for all students | Layer 2 | School admin | Every student in the school |
+| Student buys addizioni for herself | Layer 3 | Individual student | That student only |
+| Teacher grants a module to one student | Layer 3 | That student | That student only |
+| New student joins the school | — | Nobody | Inherits all org's Layer 2 grants |
+
+#### Layer 1 — Operator Activation (restart required)
+
+```
+1. App starts → registry.load_active_modules(app)
+2. Reads module_tokens: built_in=True OR is_active=True AND pending_restart=False
+3. Blueprints registered; failed imports logged as 'broken'
+4. GET /api/v1/modules/health → registered / broken / pending_restart
+```
+
+#### Layer 2 — Organisation Activation (instant, no restart)
+
+```
+1. Admin generates an org token:
+   POST /api/v1/admin/access-tokens/generate
+   Body: { "module_id": "math.moltiplicazioni", "org_id": 42, "expires_at": "..." }
+   → stores token_hash; returns plaintext ONCE
+
+2. School admin redeems it:
+   POST /api/v1/org/<org_id>/modules/activate
+   Body: { "token": "MOLT-XXXX-YYYY-ZZZZ" }
+   → validates token, inserts into org_module_access
+   → all org members instantly gain access (no restart)
+
+3. New student joins org → access inherited automatically via org membership
+```
+
+#### Layer 3 — Per-User Activation (instant, no restart)
+
+```
+1. Admin generates a personal token:
+   POST /api/v1/admin/access-tokens/generate
+   Body: { "module_id": "math.addizioni", "user_email": "...", "expires_at": "..." }
+   → stores token_hash; returns plaintext ONCE
+
+2. User redeems it:
+   POST /api/v1/user/modules/activate
+   Body: { "token": "ADDI-XXXX-YYYY-ZZZZ" }
+   → validates token, inserts into user_module_access
+   → user instantly gains access (no restart)
+   → token marked used (single-use by default)
+```
+
+#### `GET /api/v1/modules/active` is user-aware (three-layer check)
+
+Returns the intersection: Blueprint registered AND (free OR org access OR personal access).
+Guest users see only `free: true` modules.
 
 #### Module API Convention (versioned)
 
@@ -719,13 +796,26 @@ Core endpoints:
 ```
 POST /api/v1/auth/register
 POST /api/v1/auth/login
-POST /api/v1/auth/refresh                       → exchange refresh token for new JWT
+POST /api/v1/auth/refresh                       → new access token
 POST /api/v1/auth/logout
-GET  /api/v1/modules/active                     → list registered + healthy module manifests
-GET  /api/v1/modules/health                     → health status of all known modules
-POST /api/v1/modules/activate                   → activate module via token (pending restart)
-GET  /api/v1/user/profile                       → wallet, level, streak
+
+GET  /api/v1/modules/active                     → user-aware three-layer check
+GET  /api/v1/modules/health                     → operator: registered/broken/pending
+POST /api/v1/modules/activate                   → operator: global activation (pending restart)
+
+GET  /api/v1/user/modules/active                → explicit per-user module list + grant source
+POST /api/v1/user/modules/activate              → Layer 3: user redeems personal token
+GET  /api/v1/user/profile
 GET  /api/v1/user/badges
+
+GET  /api/v1/org/<org_id>/modules/active        → modules accessible to the organisation
+POST /api/v1/org/<org_id>/modules/activate      → Layer 2: org admin redeems org token
+GET  /api/v1/org/<org_id>/members               → list org members
+POST /api/v1/org/<org_id>/members               → add user to org
+
+POST /api/v1/admin/access-tokens/generate       → issue token for user or org + module
+GET  /api/v1/admin/access-tokens                → list all tokens + redemption status
+POST /api/v1/admin/organisations                → create organisation
 ```
 
 ---
@@ -793,9 +883,69 @@ CREATE TABLE user_streaks (
 CREATE TABLE user_badges (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER REFERENCES users(id),
-    badge_id TEXT NOT NULL,           -- namespaced: "<module_id>:<slug>", e.g. "math.moltiplicazioni:speed-demon"
+    badge_id TEXT NOT NULL,           -- namespaced: "<module_id>:<slug>"
     earned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(user_id, badge_id)         -- namespace prevents cross-module collision
+    UNIQUE(user_id, badge_id)
+);
+
+-- Personal access tokens issued by admin to individual users (Layer 2 activation)
+CREATE TABLE user_access_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token_hash TEXT UNIQUE NOT NULL,  -- bcrypt hash of plaintext token (never stored raw)
+    module_id TEXT NOT NULL,          -- which module this token unlocks
+    issued_to_email TEXT,             -- who it was issued for (informational)
+    issued_by INTEGER REFERENCES users(id),  -- admin who generated it
+    issued_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP,             -- NULL = never expires
+    max_uses INTEGER DEFAULT 1,       -- 1 = single-use (default); NULL = unlimited
+    use_count INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE
+);
+
+-- Per-user module access grants (result of redeeming a user_access_token)
+CREATE TABLE user_module_access (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER REFERENCES users(id),
+    module_id TEXT NOT NULL,
+    granted_by TEXT NOT NULL,         -- 'system' | 'token' | 'teacher' | 'admin'
+    access_token_id INTEGER REFERENCES user_access_tokens(id),  -- NULL if granted by system
+    granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP,             -- NULL = permanent
+    UNIQUE(user_id, module_id)
+);
+
+-- Auto-grant free modules to every user at registration:
+-- INSERT INTO user_module_access (user_id, module_id, granted_by)
+--   SELECT <new_user_id>, module_id, 'system'
+--   FROM module_tokens WHERE built_in = TRUE
+--   AND module_id IN (SELECT id FROM manifest WHERE free = TRUE);
+
+-- Organisation layer (Layer 2)
+CREATE TABLE organizations (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    name      TEXT NOT NULL,              -- "Scuola Elementare Roma"
+    org_type  TEXT DEFAULT 'school',      -- 'school' | 'family' | 'district'
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE organization_members (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id    INTEGER REFERENCES organizations(id),
+    user_id   INTEGER REFERENCES users(id),
+    role      TEXT DEFAULT 'student',     -- 'student' | 'teacher' | 'admin'
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(org_id, user_id)
+);
+
+CREATE TABLE org_module_access (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id          INTEGER REFERENCES organizations(id),
+    module_id       TEXT NOT NULL,
+    granted_by      TEXT DEFAULT 'purchase',  -- 'purchase' | 'admin'
+    access_token_id INTEGER REFERENCES user_access_tokens(id),
+    granted_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at      TIMESTAMP,            -- NULL = permanent
+    UNIQUE(org_id, module_id)
 );
 ```
 
@@ -987,12 +1137,13 @@ Server-side merge rules:
 
 | # | Limitation | Impact | Mitigation |
 |---|---|---|---|
-| 1 | Module activation requires app restart | Operator UX only (not student UX) | `pending_restart` state shown in admin; acceptable for infrequent module additions |
+| 1 | Global module activation requires app restart | Operator UX only (not student UX) | `pending_restart` state shown; acceptable for infrequent module additions |
 | 2 | SQLite WAL still has write serialization | Fine for < 100 concurrent users | Migrate to PostgreSQL before public launch |
-| 3 | Concurrent SRS reviews (two devices same user) | Rare; last-write-wins if reviews < 60s apart | `last_updated` column allows detection; conservative merge (take lower quality) planned for v2 |
+| 3 | Concurrent SRS reviews (two devices same user) | Rare; last-write-wins if reviews < 60s apart | `last_updated` column allows detection; conservative merge planned for v2 |
 | 4 | JWT access token cannot be revoked mid-session | If user is banned, old JWT valid for up to 1h | Short (1h) access token + refresh token revocation covers 99% of cases |
-| 5 | `italiano_verbi` module cannot be incrementally ported | Must cut over fully or keep dual code | `verbi_data.py` stays at root; module imports it; no data duplication |
+| 5 | `italiano_verbi` module cannot be incrementally ported | Must cut over fully or keep dual code | `verbi_data.py` stays at root during Phase 1 |
 | 6 | Teacher/parent roles exist in DB but no dashboard built | Phase 1 scope only | `role` field is in schema; dashboard is Phase 3 |
+| 7 | `user_access_tokens` are single-use by default | Cannot share one token across a class | Set `max_uses > 1` or generate per-student tokens via admin API |
 
 ---
 
