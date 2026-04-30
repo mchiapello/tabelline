@@ -1,0 +1,183 @@
+#app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ── Top Nav ──────────────────────────────────────────────────────────────── */
+#top-nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: 64px;
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-border);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--sp-6);
+  gap: var(--sp-4);
+}
+
+.nav-logo {
+  font-size: var(--text-xl);
+  font-weight: 900;
+  color: var(--c-gold);
+  text-decoration: none;
+  white-space: nowrap;
+  letter-spacing: -0.5px;
+}
+
+.nav-logo:hover {
+  text-decoration: none;
+  filter: brightness(1.15);
+}
+
+.nav-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+
+.coin-count {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  background: var(--c-surface2);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-full);
+  padding: var(--sp-1) var(--sp-3);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  color: var(--c-gold);
+}
+
+.coin-count svg {
+  width: 18px;
+  height: 18px;
+}
+
+#nav-user {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.nav-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--c-cyan), #5a3aff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: var(--text-sm);
+  color: #0a0a1a;
+  cursor: pointer;
+}
+
+/* ── Page Content ─────────────────────────────────────────────────────────── */
+#page-content {
+  flex: 1;
+  padding: var(--sp-8) var(--sp-6);
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+#page-content.full-width {
+  max-width: 100%;
+  padding: 0;
+}
+
+/* ── Toast Root ───────────────────────────────────────────────────────────── */
+#toast-root {
+  position: fixed;
+  top: 80px;
+  right: var(--sp-6);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  pointer-events: none;
+}
+
+/* ── Nav hamburger (mobile) ───────────────────────────────────────────────── */
+.nav-hamburger {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--c-text);
+  font-size: var(--text-xl);
+  cursor: pointer;
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 640px) {
+  #top-nav {
+    padding: 0 var(--sp-4);
+  }
+
+  .nav-hamburger {
+    display: flex;
+  }
+
+  .nav-center {
+    display: none;
+  }
+
+  .nav-right .coin-count,
+  .nav-right #nav-user {
+    display: none;
+  }
+
+  .nav-right.open .coin-count,
+  .nav-right.open #nav-user {
+    display: flex;
+  }
+
+  #page-content {
+    padding: var(--sp-4);
+  }
+}
+
+/* ── XP bar in nav ────────────────────────────────────────────────────────── */
+.xp-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-xs);
+  color: var(--c-text-dim);
+}
+
+.xp-bar__track {
+  width: 120px;
+  height: 8px;
+  background: var(--c-surface2);
+  border-radius: var(--r-full);
+  overflow: hidden;
+  border: 1px solid var(--c-border);
+}
+
+.xp-bar__fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--c-cyan-dim), var(--c-cyan));
+  border-radius: var(--r-full);
+  transition: width var(--t-slow) var(--ease-smooth);
+}
+
+.xp-bar__level {
+  font-weight: 700;
+  color: var(--c-cyan);
+  white-space: nowrap;
+}
