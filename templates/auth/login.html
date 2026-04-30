@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Accedi — MathQuest{% endblock %}
+
+{% block content %}
+<div style="max-width:420px;margin:var(--sp-12) auto;padding:0 var(--sp-4)">
+  <div class="card">
+    <h1 style="font-size:var(--text-2xl);font-weight:900;margin-bottom:var(--sp-2)">
+      Accedi a MathQuest
+    </h1>
+    <p style="color:var(--c-text-dim);margin-bottom:var(--sp-6)">
+      Non hai un account?
+      <a href="/auth/register">Registrati gratis</a>
+    </p>
+
+    <form id="login-form" novalidate>
+      <div class="form-group">
+        <label class="form-label" for="username">Username</label>
+        <input class="form-input" type="text" id="username" name="username"
+               autocomplete="username" autocapitalize="none" required />
+        <span class="form-error" id="err-username"></span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <div style="position:relative">
+          <input class="form-input" type="password" id="password" name="password"
+                 autocomplete="current-password" required
+                 style="padding-right:var(--sp-12)" />
+          <button type="button" id="toggle-pw"
+                  style="position:absolute;right:var(--sp-3);top:50%;transform:translateY(-50%);
+                         background:none;border:none;color:var(--c-text-dim);cursor:pointer;
+                         font-size:var(--text-lg)">👁</button>
+        </div>
+        <span class="form-error" id="err-password"></span>
+      </div>
+
+      <span class="form-error" id="err-general" style="display:block;margin-bottom:var(--sp-4)"></span>
+
+      <button type="submit" class="btn btn--primary" style="width:100%" id="submit-btn">
+        Accedi
+      </button>
+    </form>
+
+    <div style="text-align:center;margin-top:var(--sp-4)">
+      <a href="/journey" style="color:var(--c-text-dim);font-size:var(--text-sm)">
+        Continua come ospite →
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.getElementById('toggle-pw').addEventListener('click', () => {
+    const inp = document.getElementById('password');
+    inp.type  = inp.type === 'password' ? 'text' : 'password';
+  });
+
+  document.getElementById('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn      = document.getElementById('submit-btn');
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+
+    document.getElementById('err-username').textContent = '';
+    document.getElementById('err-password').textContent = '';
+    document.getElementById('err-general').textContent  = '';
+
+    if (!username) {
+      document.getElementById('err-username').textContent = 'Inserisci il tuo username';
+      return;
+    }
+    if (!password) {
+      document.getElementById('err-password').textContent = 'Inserisci la password';
+      return;
+    }
+
+    btn.disabled   = true;
+    btn.textContent = 'Accesso in corso…';
+
+    try {
+      const data = await API.post('/auth/login', { username, password });
+      localStorage.setItem('mq_access_token',  data.access_token);
+      localStorage.setItem('mq_refresh_token', data.refresh_token);
+      window.location.href = '/journey';
+    } catch (err) {
+      document.getElementById('err-general').textContent =
+        err.body?.message || 'Credenziali non valide';
+      btn.disabled   = false;
+      btn.textContent = 'Accedi';
+    }
+  });
+</script>
+{% endblock %}

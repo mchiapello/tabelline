@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}Registrati — MathQuest{% endblock %}
+
+{% block content %}
+<div style="max-width:420px;margin:var(--sp-12) auto;padding:0 var(--sp-4)">
+  <div class="card">
+    <h1 style="font-size:var(--text-2xl);font-weight:900;margin-bottom:var(--sp-2)">
+      Crea il tuo account
+    </h1>
+    <p style="color:var(--c-text-dim);margin-bottom:var(--sp-6)">
+      Già registrato? <a href="/auth/login">Accedi</a>
+    </p>
+
+    <form id="register-form" novalidate>
+      <div class="form-group">
+        <label class="form-label" for="username">Username</label>
+        <input class="form-input" type="text" id="username" name="username"
+               autocomplete="username" autocapitalize="none"
+               minlength="3" maxlength="20" required />
+        <span class="form-hint" id="hint-username">3–20 caratteri: lettere, numeri, _ o -</span>
+        <span class="form-error" id="err-username"></span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="email">Email</label>
+        <input class="form-input" type="email" id="email" name="email"
+               autocomplete="email" required />
+        <span class="form-error" id="err-email"></span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <div style="position:relative">
+          <input class="form-input" type="password" id="password" name="password"
+                 autocomplete="new-password" minlength="8" required
+                 style="padding-right:var(--sp-12)" />
+          <button type="button" id="toggle-pw"
+                  style="position:absolute;right:var(--sp-3);top:50%;transform:translateY(-50%);
+                         background:none;border:none;color:var(--c-text-dim);cursor:pointer;
+                         font-size:var(--text-lg)">👁</button>
+        </div>
+        <span class="form-hint">Minimo 8 caratteri</span>
+        <span class="form-error" id="err-password"></span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="password-confirm">Conferma password</label>
+        <input class="form-input" type="password" id="password-confirm"
+               autocomplete="new-password" required />
+        <span class="form-error" id="err-confirm"></span>
+      </div>
+
+      <span class="form-error" id="err-general" style="display:block;margin-bottom:var(--sp-4)"></span>
+
+      <button type="submit" class="btn btn--primary" style="width:100%" id="submit-btn">
+        Crea account
+      </button>
+    </form>
+
+    <div style="text-align:center;margin-top:var(--sp-4)">
+      <a href="/journey" style="color:var(--c-text-dim);font-size:var(--text-sm)">
+        Gioca come ospite →
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.getElementById('toggle-pw').addEventListener('click', () => {
+    const inp = document.getElementById('password');
+    inp.type  = inp.type === 'password' ? 'text' : 'password';
+  });
+
+  // Live username availability check (debounced 500ms)
+  let _uTimer = null;
+  document.getElementById('username').addEventListener('input', (e) => {
+    clearTimeout(_uTimer);
+    const hint = document.getElementById('hint-username');
+    const err  = document.getElementById('err-username');
+    const val  = e.target.value.trim();
+
+    if (val.length < 3) { hint.textContent = '3–20 caratteri: lettere, numeri, _ o -'; hint.className = 'form-hint'; return; }
+
+    hint.textContent = '…';
+    hint.className   = 'form-hint';
+
+    _uTimer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/v1/auth/check-username?u=${encodeURIComponent(val)}`);
+        const d   = await res.json();
+        if (d.available) {
+          hint.textContent = '✓ Username disponibile';
+          hint.className   = 'form-hint form-hint--ok';
+          err.textContent  = '';
+        } else {
+          hint.textContent = '';
+          err.textContent  = d.reason === 'invalid' ? 'Username non valido' : 'Username già in uso';
+        }
+      } catch {}
+    }, 500);
+  });
+
+  document.getElementById('register-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const btn      = document.getElementById('submit-btn');
+    const username = document.getElementById('username').value.trim();
+    const email    = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const confirm  = document.getElementById('password-confirm').value;
+
+    // Clear errors
+    ['username','email','password','confirm','general'].forEach(f =>
+      document.getElementById(`err-${f}`).textContent = '');
+
+    let valid = true;
+    if (!username || username.length < 3) {
+      document.getElementById('err-username').textContent = 'Username troppo corto (min 3)';
+      valid = false;
+    }
+    if (!email || !email.includes('@')) {
+      document.getElementById('err-email').textContent = 'Email non valida';
+      valid = false;
+    }
+    if (password.length < 8) {
+      document.getElementById('err-password').textContent = 'Password troppo corta (min 8)';
+      valid = false;
+    }
+    if (password !== confirm) {
+      document.getElementById('err-confirm').textContent = 'Le password non coincidono';
+      valid = false;
+    }
+    if (!valid) return;
+
+    btn.disabled    = true;
+    btn.textContent = 'Creazione account…';
+
+    // Include guest progress for migration
+    const guestProgress = Guest.load();
+
+    try {
+      const data = await API.post('/auth/register', {
+        username, email, password,
+        guest_progress: {
+          planets_unlocked: guestProgress.planets_unlocked || [],
+          badges:           guestProgress.badges           || [],
+          xp:               guestProgress.xp              || 0,
+          coins:            guestProgress.coins            || 0,
+        }
+      });
+      localStorage.setItem('mq_access_token',  data.access_token);
+      localStorage.setItem('mq_refresh_token', data.refresh_token);
+      // Clear guest state after migration
+      localStorage.removeItem('mq_guest');
+      window.location.href = '/journey';
+    } catch (err) {
+      const body = err.body || {};
+      if (body.field) {
+        document.getElementById(`err-${body.field}`).textContent =
+          body.message || 'Errore di validazione';
+      } else {
+        document.getElementById('err-general').textContent =
+          body.message || 'Registrazione fallita. Riprova.';
+      }
+      btn.disabled    = false;
+      btn.textContent = 'Crea account';
+    }
+  });
+</script>
+{% endblock %}
