@@ -25,7 +25,98 @@ const state = {
   inizioSessione: null,
   inizioDomanda: null,
   numDomande: 20,
+  authToken: localStorage.getItem('authToken') || null, // Store token
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUTHENTICATION
+// ─────────────────────────────────────────────────────────────────────────────
+function getAuthHeader() {
+  const token = state.authToken;
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
+
+function isLoggedIn() {
+  return state.authToken !== null;
+}
+
+async function registerUser(username, password) {
+  try {
+    const response = await fetch('/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await response.json();
+    if (response.ok) {
+      alert(data.message);
+      return true;
+    } else {
+      alert(`Registration failed: ${data.message}`);
+      return false;
+    }
+  } catch (error) {
+    console.error('Registration error:', error);
+    alert('An error occurred during registration.');
+    return false;
+  }
+}
+
+async function loginUser(username, password) {
+  try {
+    const response = await fetch('/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await response.json();
+    if (response.ok) {
+      state.authToken = data.token;
+      localStorage.setItem('authToken', data.token);
+      alert('Login successful!');
+      updateAuthUI(); // Update UI after login
+      return true;
+    } else {
+      alert(`Login failed: ${data.message}`);
+      return false;
+    }
+  } catch (error) {
+    console.error('Login error:', error);
+    alert('An error occurred during login.');
+    return false;
+  }
+}
+
+function logoutUser() {
+  state.authToken = null;
+  localStorage.removeItem('authToken');
+  alert('Logged out successfully.');
+  updateAuthUI(); // Update UI after logout
+  mostraVista('landing'); // Redirect to landing page
+}
+
+function updateAuthUI() {
+  const loggedInElements = document.querySelectorAll('.logged-in');
+  const loggedOutElements = document.querySelectorAll('.logged-out');
+  const usernameDisplay = document.getElementById('username-display');
+
+  if (isLoggedIn()) {
+    loggedInElements.forEach(el => el.style.display = 'block');
+    loggedOutElements.forEach(el => el.style.display = 'none');
+    // Decode token to get username (for display purposes only, not for auth)
+    try {
+      const tokenPayload = JSON.parse(atob(state.authToken.split('.')[1]));
+      if (usernameDisplay) usernameDisplay.textContent = tokenPayload.username;
+    } catch (e) {
+      console.error("Error decoding token for UI display:", e);
+      if (usernameDisplay) usernameDisplay.textContent = "User";
+    }
+  } else {
+    loggedInElements.forEach(el => el.style.display = 'none');
+    loggedOutElements.forEach(el => el.style.display = 'block');
+    if (usernameDisplay) usernameDisplay.textContent = "";
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // NAVIGAZIONE TRA VISTE
@@ -36,7 +127,11 @@ function mostraVista(nome) {
   document.getElementById("view-" + nome).classList.add("active");
   document.getElementById("nav-" + nome).classList.add("active");
   if (nome === "stats") caricaStatistiche(window.DEFAULT_MATERIA || "tabelline");
+  updateAuthUI(); // Ensure UI is updated on view change
 }
+
+// Initial UI update on page load
+document.addEventListener('DOMContentLoaded', updateAuthUI);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GENERAZIONE DOMANDE (unificata per × e +)
@@ -476,23 +571,33 @@ async function terminaSessione() {
   const tot         = state.risposte.length;
   const perc        = Math.round((corrette / tot) * 100);
 
-  try {
-    await fetch("/api/salva-verifica", {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        modalita:         state.modalita,
-        materia:          state.materia,
-        totale_domande:   tot,
-        risposte_corrette: corrette,
-        tempo_totale:     tempoTotale,
-        timer_per_domanda: state.timerPerDomanda || null,
-        livello_max:      state.livelloMax,
-        risposte:         state.risposte,
-      }),
-    });
-  } catch (e) {
-    console.error("Errore salvataggio:", e);
+  if (isLoggedIn()) {
+    try {
+      const headers = {
+        "Content-Type": "application/json",
+        ...getAuthHeader()
+      };
+      await fetch("/api/math/salva-verifica", {
+        method:  "POST",
+        headers: headers,
+        body: JSON.stringify({
+          modalita:         state.modalita,
+          materia:          state.materia,
+          totale_domande:   tot,
+          risposte_corrette: corrette,
+          tempo_totale:     tempoTotale,
+          timer_per_domanda: state.timerPerDomanda || null,
+          livello_max:      state.livelloMax,
+          risposte:         state.risposte,
+        }),
+      });
+    } catch (e) {
+      console.error("Errore salvataggio:", e);
+      alert("Errore nel salvataggio del progresso. Riprova più tardi.");
+    }
+  } else {
+    console.log("Utente non loggato, progresso non salvato.");
+    // Optionally, show a message to the user that progress is not saved
   }
 
   switch (state.modalita) {
@@ -633,12 +738,26 @@ async function caricaStatistiche(materia) {
   if (heatmapSection) heatmapSection.style.display = materia === "tabelline" ? "block" : "none";
   if (livelliSection)  livelliSection.style.display  = materia === "addizioni" ? "block" : "none";
 
-  try {
-    const res  = await fetch(`/api/statistiche?materia=${materia}`);
-    const data = await res.json();
-    renderStatistiche(data, materia);
-  } catch (e) {
-    console.error("Errore caricamento statistiche:", e);
+  if (isLoggedIn()) {
+    try {
+      const headers = getAuthHeader();
+      const res  = await fetch(`/api/math/statistiche?materia=${materia}`, { headers: headers });
+      const data = await res.json();
+      renderStatistiche(data, materia);
+    } catch (e) {
+      console.error("Errore caricamento statistiche:", e);
+      alert("Errore nel caricamento delle statistiche. Assicurati di essere loggato.");
+    }
+  } else {
+    // For guest users, clear stats or show a message
+    console.log("Utente non loggato, statistiche non disponibili.");
+    renderStatistiche({
+      generale: {},
+      per_coppia: [],
+      per_livello: [],
+      ultime_verifiche: []
+    }, materia); // Render empty stats
+    alert("Effettua il login per visualizzare le tue statistiche.");
   }
 }
 
