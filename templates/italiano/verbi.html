@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verbi Italiani</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/verbi.css">
+</head>
+<body class="verbi-app">
+
+<!-- ── NAV ── -->
+<nav class="nav nav-italiano">
+  <a href="/italiano" class="nav-logo" style="text-decoration:none; color:white; font-size:1rem; font-weight:700;">← Italiano</a>
+  <span style="color:white; font-weight:800; font-size:1.1rem; margin-left:8px;">Verbi Italiani</span>
+</nav>
+
+<div style="max-width:640px; margin:0 auto; padding:20px 16px;">
+
+  <!-- ════════════════════════════════════════════════════════
+       SEZIONE SETUP — scelta livello
+  ════════════════════════════════════════════════════════ -->
+  <div id="v-sezione-setup">
+
+    <div class="v-card" style="text-align:center;">
+      <h2 style="margin:0 0 6px; color:var(--v-primary); font-size:1.8rem;">Verbi Italiani</h2>
+      <p style="color:var(--v-muted); margin-bottom:28px;">Scegli il tuo livello per iniziare</p>
+
+      <div class="livello-grid">
+        <div class="livello-card" id="card-base" onclick="selezionaLivello('base')">
+          <div class="lv-emoji">🌱</div>
+          <div class="lv-nome">Base</div>
+          <div class="lv-eta">6–8 anni</div>
+        </div>
+        <div class="livello-card" id="card-avanzato" onclick="selezionaLivello('avanzato')">
+          <div class="lv-emoji">🚀</div>
+          <div class="lv-nome">Avanzato</div>
+          <div class="lv-eta">9–11 anni</div>
+        </div>
+      </div>
+
+      <button id="btn-inizia" class="v-btn v-btn-primary"
+              style="min-width:220px; margin-top:8px;"
+              disabled
+              onclick="avviaSessioneVerbi(_livelloSelezionato)">
+        Inizia sessione
+      </button>
+    </div>
+
+    <!-- Badge -->
+    <div class="v-card" style="margin-top:16px;">
+      <h3 style="margin:0 0 16px; font-size:1.05rem; color:#374151;">🏆 I tuoi badge</h3>
+      <div id="badge-grid" class="badge-grid"></div>
+    </div>
+
+  </div><!-- /v-sezione-setup -->
+
+
+  <!-- ════════════════════════════════════════════════════════
+       SEZIONE SESSIONE — esercizio corrente
+  ════════════════════════════════════════════════════════ -->
+  <div id="v-sezione-sessione" style="display:none;">
+
+    <div class="v-card">
+
+      <!-- Barra progresso -->
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
+        <div class="v-progress-wrap" style="flex:1;">
+          <div id="v-progress-bar" class="v-progress-bar" style="width:0%;"></div>
+        </div>
+        <span id="v-progresso-label"
+              style="font-size:0.9rem; color:var(--v-muted); white-space:nowrap; font-weight:600;">
+          1 / 10
+        </span>
+      </div>
+
+      <!-- Soggetto pill -->
+      <div style="text-align:center; margin-bottom:4px;">
+        <span class="soggetto-pill">
+          <span id="v-soggetto"></span>
+        </span>
+      </div>
+
+      <!-- Modo / Tempo -->
+      <p id="v-contesto"
+         style="text-align:center; color:var(--v-muted); font-size:0.9rem; margin:0 0 4px;">
+      </p>
+
+      <!-- Verbo display con color-coding morfologico -->
+      <div id="v-verbo-display" class="verbo-display"></div>
+
+      <!-- Input risposta -->
+      <input id="v-input"
+             type="text"
+             class="v-input"
+             autocomplete="off"
+             autocorrect="off"
+             autocapitalize="off"
+             spellcheck="false"
+             placeholder="Scrivi la forma…">
+
+      <!-- Feedback box (nascosta; mostrata da FeedbackUI) -->
+      <div id="feedback-box" class="feedback-box"></div>
+
+      <!-- Bottoni azione -->
+      <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:16px;">
+        <button id="btn-v-conferma"
+                class="v-btn v-btn-primary"
+                onclick="confermaRispostaVerbi()">
+          Conferma
+        </button>
+        <button class="v-btn v-btn-ghost" onclick="_mostraSuggerimento()">
+          💡 Suggerimento
+        </button>
+        <button class="v-btn v-btn-ghost" onclick="_salta()">
+          Salta →
+        </button>
+      </div>
+
+    </div>
+  </div><!-- /v-sezione-sessione -->
+
+
+  <!-- ════════════════════════════════════════════════════════
+       SEZIONE RIEPILOGO — risultati + mostriciattoli
+  ════════════════════════════════════════════════════════ -->
+  <div id="v-sezione-riepilogo" style="display:none;">
+
+    <!-- Score card -->
+    <div class="v-card" style="text-align:center;">
+      <div style="font-size:3rem; margin-bottom:8px;">🎉</div>
+      <h2 style="margin:0 0 4px; color:var(--v-primary); font-size:1.6rem;">Sessione completata!</h2>
+      <p id="ris-punteggio"
+         style="font-size:2.6rem; font-weight:800; color:#1f2937; margin:16px 0 4px;"></p>
+      <p id="ris-perc"
+         style="font-size:1.2rem; color:var(--v-muted); margin:0 0 4px;"></p>
+      <p id="ris-tempo"
+         style="font-size:0.9rem; color:var(--v-muted); margin:0 0 24px;"></p>
+
+      <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+        <button class="v-btn v-btn-primary"
+                onclick="avviaSessioneVerbi(stato.livello)">
+          Riprova
+        </button>
+        <button class="v-btn v-btn-ghost"
+                onclick="_mostraSezione('setup')">
+          Cambia livello
+        </button>
+      </div>
+    </div>
+
+    <!-- Mostriciattoli -->
+    <div class="v-card" style="margin-top:16px;">
+      <h3 style="margin:0 0 6px; font-size:1.05rem; color:#9a3412;">👾 I tuoi mostriciattoli</h3>
+      <p style="font-size:0.85rem; color:var(--v-muted); margin:0 0 16px;">
+        Le forme che sbagli più spesso — ripassale!
+      </p>
+      <div id="mostriciattoli-list"></div>
+    </div>
+
+  </div><!-- /v-sezione-riepilogo -->
+
+</div><!-- /container -->
+
+<!-- Badge toast (creato dinamicamente da BadgeUI se non presente) -->
+<div id="badge-toast" class="badge-toast"></div>
+
+<!-- ── SCRIPTS ── -->
+<script src="/static/js/verbi.js"></script>
+<script>
+  // ── Stato locale della pagina ──────────────────────────────
+  let _livelloSelezionato = null;
+
+  // ── Selezione livello ──────────────────────────────────────
+  function selezionaLivello(lv) {
+    _livelloSelezionato = lv;
+    document.getElementById("card-base").classList.toggle("selected", lv === "base");
+    document.getElementById("card-avanzato").classList.toggle("selected", lv === "avanzato");
+    document.getElementById("btn-inizia").disabled = false;
+  }
+
+  // ── Suggerimento: mostra le prime 2 lettere della risposta ─
+  function _mostraSuggerimento() {
+    const e = VerbSession.esercizioCorrente();
+    if (!e) return;
+    const input = document.getElementById("v-input");
+    if (!input) return;
+    input.value = e.forma.slice(0, 2);
+    input.focus();
+  }
+
+  // ── Salta: invia risposta vuota (sbagliata) e avanza ───────
+  async function _salta() {
+    await VerbSession.inviaSoluzione("");
+    if (VerbSession.avanza()) _renderEsercizio();
+    else _mostraRiepilogo();
+  }
+
+  // ── Init pagina ────────────────────────────────────────────
+  document.addEventListener("DOMContentLoaded", () => {
+    _mostraSezione("setup");
+    BadgeUI.caricaEMostra();
+  });
+</script>
+
+</body>
+</html>

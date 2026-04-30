@@ -1,0 +1,316 @@
+/*
+ * verbi.css — Stili per la sezione Verbi Italiani
+ *
+ * Font DSA: OpenDyslexic (open-source, simile a EasyReading).
+ * Per EasyReading Pro (licenza commerciale) sostituire @font-face con
+ * il file acquistato e aggiornare font-family di .dsa-font.
+ *
+ * Color-coding morfologico:
+ *   Radice      → --morph-radice   (grigio scuro, neutro)
+ *   Desinenza   → --morph-desinenza (rosso, contrasto alto)
+ *   Soggetto    → --morph-soggetto  (blu)
+ *   Irregolare  → --morph-irregular (viola brillante)
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&display=swap');
+
+:root {
+  /* Morfologia */
+  --morph-radice:     #374151;
+  --morph-desinenza:  #dc2626;
+  --morph-soggetto:   #2563eb;
+  --morph-irregular:  #7c3aed;
+
+  /* Colori interfaccia verbi */
+  --v-bg:          #faf7ff;
+  --v-card:        #ffffff;
+  --v-primary:     #7c3aed;
+  --v-primary-d:   #6d28d9;
+  --v-accent:      #f59e0b;
+  --v-success:     #059669;
+  --v-danger:      #dc2626;
+  --v-muted:       #6b7280;
+  --v-border:      #e5e7eb;
+  --v-radius:      20px;
+  --v-shadow:      0 4px 24px rgba(124,58,237,0.10);
+
+  /* DSA typography */
+  --dsa-font:      'Lexend', 'OpenDyslexic', 'Segoe UI', sans-serif;
+  --dsa-size:      1.15rem;
+  --dsa-line:      1.85;
+  --dsa-letter:    0.03em;
+  --dsa-word:      0.12em;
+}
+
+/* ── RESET SCOPED ── */
+.verbi-app * { box-sizing: border-box; }
+
+/* ── LAYOUT GLOBALE ── */
+.verbi-app {
+  font-family:    var(--dsa-font);
+  font-size:      var(--dsa-size);
+  line-height:    var(--dsa-line);
+  letter-spacing: var(--dsa-letter);
+  word-spacing:   var(--dsa-word);
+  background:     var(--v-bg);
+  min-height:     100vh;
+  color:          #1f2937;
+}
+
+/* ── CARD ── */
+.v-card {
+  background:    var(--v-card);
+  border-radius: var(--v-radius);
+  box-shadow:    var(--v-shadow);
+  padding:       28px 32px;
+  margin-bottom: 20px;
+}
+
+/* ── BOTTONI GRANDI (bassa densità cognitiva) ── */
+.v-btn {
+  display:         inline-flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             10px;
+  padding:         16px 36px;
+  font-family:     var(--dsa-font);
+  font-size:       1.1rem;
+  font-weight:     700;
+  border-radius:   14px;
+  border:          none;
+  cursor:          pointer;
+  transition:      transform 0.12s, box-shadow 0.12s;
+  letter-spacing:  0.02em;
+}
+
+.v-btn:hover  { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
+.v-btn:active { transform: scale(0.97); }
+
+.v-btn-primary  { background: var(--v-primary);  color: #fff; }
+.v-btn-primary:hover { background: var(--v-primary-d); }
+.v-btn-success  { background: var(--v-success);  color: #fff; }
+.v-btn-danger   { background: var(--v-danger);   color: #fff; }
+.v-btn-ghost    { background: #f3f4f6; color: #374151; border: 2px solid var(--v-border); }
+.v-btn-ghost:hover { border-color: var(--v-primary); color: var(--v-primary); }
+
+/* ── VERBO DISPLAY (testo grande e leggibile) ── */
+.verbo-display {
+  font-size:      2.8rem;
+  font-weight:    800;
+  text-align:     center;
+  letter-spacing: -0.5px;
+  line-height:    1.15;
+  margin:         24px 0;
+}
+
+/* COLOR-CODING MORFOLOGICO */
+.morph-radice     { color: var(--morph-radice); }
+.morph-desinenza  {
+  color:          var(--morph-desinenza);
+  font-weight:    900;
+  border-bottom:  3px solid var(--morph-desinenza);
+  padding-bottom: 2px;
+}
+.morph-soggetto   {
+  color:          var(--morph-soggetto);
+  font-weight:    800;
+}
+
+/* Verbi irregolari: viola + effetto glow */
+.verbo-irregolare .morph-radice,
+.verbo-irregolare .morph-desinenza {
+  color: var(--morph-irregular);
+}
+.verbo-irregolare .morph-desinenza {
+  border-bottom-color: var(--morph-irregular);
+}
+.badge-irregular {
+  display:          inline-block;
+  background:       var(--morph-irregular);
+  color:            #fff;
+  font-size:        0.7rem;
+  font-weight:      700;
+  padding:          2px 10px;
+  border-radius:    20px;
+  margin-left:      8px;
+  vertical-align:   middle;
+  letter-spacing:   0.05em;
+  text-transform:   uppercase;
+}
+
+/* ANIMAZIONE TRASFORMAZIONE (irregolari) */
+@keyframes morph-out {
+  0%   { opacity: 1; transform: scale(1)   skewX(0deg); filter: blur(0); }
+  50%  { opacity: 0.3; transform: scale(0.9) skewX(-8deg); filter: blur(3px); color: var(--morph-irregular); }
+  100% { opacity: 0; transform: scale(0.8) skewX(-15deg); filter: blur(6px); }
+}
+@keyframes morph-in {
+  0%   { opacity: 0; transform: scale(1.15) skewX(10deg); filter: blur(6px); color: var(--morph-irregular); }
+  60%  { opacity: 0.8; transform: scale(1.03) skewX(-2deg); filter: blur(1px); }
+  100% { opacity: 1; transform: scale(1)   skewX(0deg); filter: blur(0); }
+}
+
+.trasformazione-out { animation: morph-out 0.35s ease-in  forwards; }
+.trasformazione-in  { animation: morph-in  0.4s  ease-out forwards; }
+
+/* ── INPUT RISPOSTA ── */
+.v-input {
+  font-family:   var(--dsa-font);
+  font-size:     1.8rem;
+  font-weight:   700;
+  text-align:    center;
+  width:         100%;
+  max-width:     340px;
+  padding:       14px 20px;
+  border:        3px solid var(--v-border);
+  border-radius: 14px;
+  background:    #f9fafb;
+  color:         #111827;
+  transition:    border-color 0.15s;
+  display:       block;
+  margin:        0 auto 20px;
+}
+.v-input:focus         { outline: none; border-color: var(--v-primary); }
+.v-input.corretta      { border-color: var(--v-success); background: #f0fdf4; }
+.v-input.sbagliata     { border-color: var(--v-danger);  background: #fff1f2; }
+
+/* ── FEEDBACK ERRORE ── */
+.feedback-box {
+  border-radius: 14px;
+  padding:       16px 20px;
+  margin:        12px 0;
+  font-weight:   600;
+  display:       none;
+}
+.feedback-box.visible { display: block; }
+.feedback-box.ok      { background: #d1fae5; color: #065f46; border: 2px solid #6ee7b7; }
+.feedback-box.ko      { background: #fee2e2; color: #991b1b; border: 2px solid #fca5a5; }
+
+.feedback-emoji  { font-size: 1.6rem; margin-right: 8px; }
+.feedback-titolo { font-size: 1.1rem; font-weight: 800; display: block; margin-bottom: 4px; }
+.feedback-testo  { font-size: 0.95rem; line-height: 1.5; }
+
+/* ── PROGRESSO ── */
+.v-progress-wrap {
+  height:        10px;
+  background:    var(--v-border);
+  border-radius: 5px;
+  overflow:      hidden;
+  margin-bottom: 20px;
+}
+.v-progress-bar {
+  height:           100%;
+  background:       linear-gradient(90deg, var(--v-primary), #a78bfa);
+  border-radius:    5px;
+  transition:       width 0.4s ease;
+}
+
+/* ── SOGGETTO PILL ── */
+.soggetto-pill {
+  display:          inline-flex;
+  align-items:      center;
+  gap:              6px;
+  padding:          8px 20px;
+  background:       #eff6ff;
+  border:           2px solid #bfdbfe;
+  border-radius:    30px;
+  color:            var(--morph-soggetto);
+  font-weight:      800;
+  font-size:        1.2rem;
+  margin-bottom:    16px;
+}
+
+/* ── MOSTRICIATTOLI ── */
+.mostro-card {
+  display:       flex;
+  align-items:   center;
+  gap:           14px;
+  padding:       14px 18px;
+  background:    #fff7ed;
+  border:        2px solid #fed7aa;
+  border-radius: 14px;
+  margin-bottom: 10px;
+}
+.mostro-icon  { font-size: 1.8rem; }
+.mostro-verbo { font-weight: 800; font-size: 1rem; color: #9a3412; }
+.mostro-info  { font-size: 0.85rem; color: var(--v-muted); }
+.mostro-count {
+  margin-left:   auto;
+  background:    #ea580c;
+  color:         #fff;
+  border-radius: 20px;
+  padding:       2px 10px;
+  font-weight:   700;
+  font-size:     0.8rem;
+}
+
+/* ── BADGE ── */
+.badge-grid {
+  display:               grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap:                   14px;
+}
+.badge-item {
+  text-align:    center;
+  padding:       20px 12px;
+  border-radius: 16px;
+  border:        2px solid var(--v-border);
+  background:    #fff;
+}
+.badge-item.conquistato {
+  border-color: var(--v-accent);
+  background:   #fffbeb;
+}
+.badge-item.bloccato { opacity: 0.45; filter: grayscale(0.8); }
+.badge-icon  { font-size: 2.4rem; margin-bottom: 8px; }
+.badge-nome  { font-size: 0.85rem; font-weight: 700; color: #374151; }
+
+/* ── TOAST BADGE ── */
+.badge-toast {
+  position:      fixed;
+  bottom:        24px;
+  left:          50%;
+  transform:     translateX(-50%) translateY(100px);
+  background:    linear-gradient(135deg, #7c3aed, #a78bfa);
+  color:         #fff;
+  padding:       16px 28px;
+  border-radius: 20px;
+  font-weight:   700;
+  font-size:     1rem;
+  box-shadow:    0 8px 32px rgba(124,58,237,0.4);
+  z-index:       999;
+  transition:    transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  white-space:   nowrap;
+}
+.badge-toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ── LIVELLO SELECTOR ── */
+.livello-grid {
+  display:               grid;
+  grid-template-columns: 1fr 1fr;
+  gap:                   16px;
+  margin-bottom:         24px;
+}
+.livello-card {
+  padding:       24px 20px;
+  border-radius: var(--v-radius);
+  border:        3px solid var(--v-border);
+  text-align:    center;
+  cursor:        pointer;
+  transition:    all 0.15s;
+  background:    #fff;
+}
+.livello-card:hover      { border-color: var(--v-primary); transform: translateY(-2px); }
+.livello-card.selected   { border-color: var(--v-primary); background: #f5f3ff; }
+.livello-card .lv-emoji  { font-size: 2.5rem; margin-bottom: 8px; }
+.livello-card .lv-nome   { font-weight: 800; font-size: 1.1rem; color: #1f2937; }
+.livello-card .lv-eta    { font-size: 0.85rem; color: var(--v-muted); margin-top: 2px; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 520px) {
+  :root { --dsa-size: 1rem; }
+  .verbo-display { font-size: 2rem; }
+  .v-input { font-size: 1.4rem; }
+  .livello-grid { grid-template-columns: 1fr; }
+  .v-card { padding: 20px 16px; }
+}
