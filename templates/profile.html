@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}Profilo — MathQuest{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/game.css') }}">
+{% endblock %}
+
+{% block content %}
+<div id="profile-root" style="max-width:800px;margin:0 auto">
+  <div id="profile-loading" style="text-align:center;padding:var(--sp-12);color:var(--c-text-dim)">
+    Caricamento profilo…
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/journey.js') }}"></script>
+<script>
+(async function loadProfile() {
+  const root = document.getElementById('profile-root');
+
+  if (!Guest.isLoggedIn()) {
+    root.innerHTML = `
+      <div class="card" style="text-align:center;padding:var(--sp-12)">
+        <div style="font-size:var(--text-5xl);margin-bottom:var(--sp-4)">🔒</div>
+        <h2 style="margin-bottom:var(--sp-4)">Accedi per vedere il tuo profilo</h2>
+        <p style="color:var(--c-text-dim);margin-bottom:var(--sp-6)">
+          Il profilo tiene traccia dei tuoi progressi, badge e statistiche.
+        </p>
+        <div style="display:flex;gap:var(--sp-3);justify-content:center;flex-wrap:wrap">
+          <a href="/auth/login" class="btn btn--primary">Accedi</a>
+          <a href="/auth/register" class="btn btn--secondary">Crea account</a>
+        </div>
+      </div>`;
+    return;
+  }
+
+  let me, progress, heatmap;
+  try {
+    [me, progress] = await Promise.all([
+      API.get('/auth/me'),
+      API.get('/user/progress'),
+    ]);
+    heatmap = await API.get('/user/heatmap').catch(() => ({ facts: {} }));
+  } catch {
+    root.innerHTML = '<p style="color:var(--c-coral);padding:var(--sp-8)">Errore nel caricamento del profilo.</p>';
+    return;
+  }
+
+  const wallet = me.wallet  || { coins: 0, xp: 0, level: 1 };
+  const streak = me.streak  || { current: 0, longest: 0 };
+  const xpForLevel = 100;
+  const xpInLevel  = wallet.xp % xpForLevel;
+  const xpPct      = Math.round(xpInLevel / xpForLevel * 100);
+  const initial     = (me.username || '?')[0].toUpperCase();
+
+  const ALL_BADGES = {
+    "moltiplicazioni:first_contact":   "Primo Contatto",
+    "moltiplicazioni:master_x2":       "Maestro del ×2",
+    "moltiplicazioni:master_x5":       "Maestro del ×5",
+    "moltiplicazioni:master_x10":      "Maestro del ×10",
+    "moltiplicazioni:master_x3":       "Maestro del ×3",
+    "moltiplicazioni:master_x4":       "Maestro del ×4",
+    "moltiplicazioni:master_x6":       "Maestro del ×6",
+    "moltiplicazioni:master_x9":       "Maestro del ×9",
+    "moltiplicazioni:master_x7":       "Maestro del ×7",
+    "moltiplicazioni:master_x8":       "Maestro del ×8",
+    "moltiplicazioni:galaxy_explorer": "Esploratore Galattico",
+    "moltiplicazioni:perfect_session": "Sessione Perfetta",
+    "moltiplicazioni:speed_demon":     "Demone della Velocità",
+    "moltiplicazioni:comeback_kid":    "Comeback Kid",
+    "moltiplicazioni:seven_day_streak":"Striscia di 7 Giorni",
+    "moltiplicazioni:perfect_mission": "Missione Perfetta",
+  };
+
+  const earnedSet  = new Set(progress.badges || []);
+  const flameCount = Math.min(streak.current, 7);
+  const flames     = '🔥'.repeat(flameCount) || '—';
+
+  root.innerHTML = `
+    <!-- Header -->
+    <div style="display:flex;align-items:center;gap:var(--sp-6);margin-bottom:var(--sp-8);flex-wrap:wrap">
+      <div class="nav-avatar" style="width:72px;height:72px;font-size:var(--text-3xl)">${initial}</div>
+      <div>
+        <h1 style="font-size:var(--text-3xl);font-weight:900;margin-bottom:var(--sp-1)">${me.username}</h1>
+        <span class="badge-chip badge-chip--cyan">Livello ${wallet.level}</span>
+      </div>
+    </div>
+
+    <!-- Stats row -->
+    <div class="grid-3" style="margin-bottom:var(--sp-6)">
+      <div class="card" style="text-align:center">
+        <div style="font-size:var(--text-3xl);font-weight:900;color:var(--c-gold)">${wallet.coins}</div>
+        <div style="font-size:var(--text-sm);color:var(--c-text-dim)">🪙 Monete</div>
+      </div>
+      <div class="card" style="text-align:center">
+        <div style="font-size:var(--text-3xl);font-weight:900;color:var(--c-cyan)">${wallet.xp}</div>
+        <div style="font-size:var(--text-sm);color:var(--c-text-dim)">⚡ XP Totale</div>
+      </div>
+      <div class="card" style="text-align:center">
+        <div style="font-size:var(--text-3xl);font-weight:900;color:var(--c-coral)">${streak.current}</div>
+        <div style="font-size:var(--text-sm);color:var(--c-text-dim)">🔥 Giorni di fila</div>
+      </div>
+    </div>
+
+    <!-- XP bar -->
+    <div class="card" style="margin-bottom:var(--sp-6)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--sp-3)">
+        <span style="font-weight:700">Livello ${wallet.level}</span>
+        <span style="color:var(--c-text-dim);font-size:var(--text-sm)">${xpInLevel}/${xpForLevel} XP</span>
+        <span style="font-weight:700">Livello ${wallet.level + 1}</span>
+      </div>
+      <div class="progress-bar progress-bar--gold">
+        <div class="progress-bar__fill" style="width:${xpPct}%"></div>
+      </div>
+    </div>
+
+    <!-- Streak card -->
+    <div class="card" style="margin-bottom:var(--sp-6)">
+      <h2 style="font-size:var(--text-xl);font-weight:900;margin-bottom:var(--sp-4)">🔥 Striscia</h2>
+      <div style="display:flex;gap:var(--sp-8);flex-wrap:wrap">
+        <div>
+          <div style="font-size:var(--text-3xl);font-weight:900">${flames}</div>
+          <div style="font-size:var(--text-sm);color:var(--c-text-dim)">Striscia attuale: ${streak.current} giorni</div>
+        </div>
+        <div>
+          <div style="font-size:var(--text-3xl);font-weight:900;color:var(--c-gold)">🏆 ${streak.longest}</div>
+          <div style="font-size:var(--text-sm);color:var(--c-text-dim)">Record personale</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Heatmap -->
+    <div class="card" style="margin-bottom:var(--sp-6)">
+      <h2 style="font-size:var(--text-xl);font-weight:900;margin-bottom:var(--sp-2)">📊 Mappa delle tabelline</h2>
+      <p style="color:var(--c-text-dim);font-size:var(--text-sm);margin-bottom:var(--sp-4)">
+        Colori: grigio=mai praticato, rosso&lt;50%, giallo 50–75%, verde 75–90%, azzurro&gt;90%
+      </p>
+      <div id="heatmap-grid"></div>
+    </div>
+
+    <!-- Badges -->
+    <div class="card" style="margin-bottom:var(--sp-6)">
+      <h2 style="font-size:var(--text-xl);font-weight:900;margin-bottom:var(--sp-4)">🏅 Badge</h2>
+      <div style="display:flex;flex-wrap:wrap;gap:var(--sp-3)">
+        ${Object.entries(ALL_BADGES).map(([bid, name]) => {
+          const earned = earnedSet.has(bid);
+          return `<span class="badge-chip ${earned ? 'badge-chip--gold' : 'badge-chip--locked'}"
+                        title="${bid}">
+                    ${earned ? '🏅' : '🔒'} ${name}
+                  </span>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- Planet progress -->
+    <div class="card">
+      <h2 style="font-size:var(--text-xl);font-weight:900;margin-bottom:var(--sp-4)">🪐 Pianeti conquistati</h2>
+      <p style="color:var(--c-text-dim)">
+        ${(progress.planets_unlocked || []).length} / 9 pianeti sbloccati
+      </p>
+      <div style="margin-top:var(--sp-4)">
+        <a href="/journey" class="btn btn--secondary btn--sm">Vai alla mappa →</a>
+      </div>
+    </div>
+  `;
+
+  // Render heatmap
+  Journey.renderHeatmap('heatmap-grid');
+})();
+</script>
+{% endblock %}
