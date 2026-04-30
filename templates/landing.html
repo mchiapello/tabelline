@@ -1,112 +1,73 @@
-<!DOCTYPE html>
-<html lang="it">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Scuola</title>
-  <link rel="stylesheet" href="/static/css/style.css">
-  <style>
-    .landing-wrap {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 32px 24px;
+{% extends "base.html" %}
+
+{% block title %}MathQuest — Impara le tabelline giocando{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/journey.css') }}">
+{% endblock %}
+
+{% block content_attrs %}class="full-width"{% endblock %}
+
+{% block content %}
+<div id="landing-root"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/journey.js') }}"></script>
+<script>
+  (function() {
+    const root = document.getElementById('landing-root');
+
+    if (Guest.isLoggedIn()) {
+      window.location.replace('/journey');
+      return;
     }
 
-    .landing-logo {
-      font-size: 2.5rem;
-      font-weight: 800;
-      color: var(--text);
-      letter-spacing: -1px;
-      margin-bottom: 8px;
-      text-align: center;
-    }
+    root.innerHTML = `
+      <section id="galaxy-map">
+        <div class="hero">
+          <h1 class="hero__title">Conquista la Galassia delle Tabelline</h1>
+          <p class="hero__subtitle">
+            Impara le moltiplicazioni con un gioco di esplorazione spaziale.
+            9 pianeti, 5 modalità di gioco, progressi salvati automaticamente.
+          </p>
+          <div class="hero__cta">
+            <a href="/journey" class="btn btn--primary btn--lg">🚀 Inizia a giocare</a>
+            <a href="/auth/register" class="btn btn--secondary">Crea account</a>
+          </div>
+          <div class="hero__stats">
+            <div class="hero__stat">
+              <span class="hero__stat-number">9</span>
+              <span class="hero__stat-label">pianeti</span>
+            </div>
+            <div class="hero__stat">
+              <span class="hero__stat-number">5</span>
+              <span class="hero__stat-label">modalità</span>
+            </div>
+            <div class="hero__stat">
+              <span class="hero__stat-number">∞</span>
+              <span class="hero__stat-label">divertimento</span>
+            </div>
+          </div>
+        </div>
 
-    .landing-subtitle {
-      color: var(--text-muted);
-      font-size: 1.1rem;
-      margin-bottom: 48px;
-      text-align: center;
-    }
+        <div id="planet-path"></div>
 
-    .materie-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 24px;
-      width: 100%;
-      max-width: 640px;
-    }
-
-    .materia-card {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      padding: 40px 24px;
-      border-radius: var(--radius);
-      text-decoration: none;
-      color: white;
-      font-weight: 700;
-      transition: transform 0.15s, box-shadow 0.15s;
-      box-shadow: var(--shadow);
-      text-align: center;
-    }
-
-    .materia-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-    }
-
-    .materia-card.matematica { background: var(--primary); }
-    .materia-card.matematica:hover { background: #4338ca; }
-
-    .materia-card.italiano { background: var(--italiano); }
-    .materia-card.italiano:hover { background: #6d28d9; }
-
-    .materia-card.wip { opacity: 0.7; cursor: default; }
-    .materia-card.wip:hover { transform: none; box-shadow: var(--shadow); }
-
-    .materia-icon { font-size: 3rem; line-height: 1; }
-    .materia-nome { font-size: 1.4rem; letter-spacing: -0.5px; }
-    .materia-desc { font-size: 0.85rem; opacity: 0.85; font-weight: 400; }
-
-    .wip-badge {
-      background: rgba(255,255,255,0.25);
-      border-radius: 20px;
-      padding: 3px 12px;
-      font-size: 0.75rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    @media (max-width: 480px) {
-      .materie-grid { grid-template-columns: 1fr; max-width: 320px; }
-    }
-  </style>
-</head>
-<body>
-  <div class="landing-wrap">
-    <div class="landing-logo">📖 Scuola</div>
-    <p class="landing-subtitle">Scegli la materia per iniziare</p>
-
-    <div class="materie-grid">
-      <a href="/matematica" class="materia-card matematica">
-        <div class="materia-icon">✖</div>
-        <div class="materia-nome">Matematica</div>
-        <div class="materia-desc">Tabelline &amp; Addizioni</div>
-      </a>
-
-      <div class="materia-card italiano wip">
-        <div class="materia-icon">📚</div>
-        <div class="materia-nome">Italiano</div>
-        <div class="materia-desc">In arrivo</div>
-        <div class="wip-badge">Prossimamente</div>
-      </div>
-    </div>
-  </div>
-</body>
-</html>
+        <div id="map-legend">
+          <div class="legend-item">
+            <div class="legend-dot legend-dot--locked"></div>
+            <span>Bloccato</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot legend-dot--available"></div>
+            <span>Disponibile</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot legend-dot--mastered"></div>
+            <span>Conquistato</span>
+          </div>
+        </div>
+      </section>`;
+  })();
+</script>
+{% endblock %}

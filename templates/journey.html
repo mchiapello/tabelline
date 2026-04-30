@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Galassia — MathQuest{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/journey.css') }}">
+{% endblock %}
+
+{% block content_attrs %}class="full-width"{% endblock %}
+
+{% block content %}
+<section id="galaxy-map">
+  <h1 class="galaxy-title">Galassia MathQuest</h1>
+  <p class="galaxy-subtitle">Conquista ogni pianeta padroneggiando le sue tabelline</p>
+
+  <div id="planet-path">
+    <!-- Populated by journey.js -->
+  </div>
+
+  <button id="galaxy-cup-btn" class="btn btn--secondary"
+          onclick="Modal.open('planet-menu', {table: null, state: 'galaxy_cup'})">
+    🏆 Galaxy Cup — Tutte le tabelle
+  </button>
+
+  <div id="map-legend">
+    <div class="legend-item">
+      <div class="legend-dot legend-dot--locked"></div>
+      <span>Bloccato</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot legend-dot--available"></div>
+      <span>Disponibile</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot legend-dot--mastered"></div>
+      <span>Conquistato</span>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/journey.js') }}"></script>
+{% endblock %}

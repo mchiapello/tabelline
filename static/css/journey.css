@@ -1,0 +1,247 @@
+/* ── Galaxy Map layout ────────────────────────────────────────────────────── */
+#galaxy-map {
+  min-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--sp-8) var(--sp-4);
+  position: relative;
+  overflow-x: hidden;
+}
+
+#galaxy-map::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 20% 20%, rgba(90,58,255,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 80%, rgba(0,212,255,0.06) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.galaxy-title {
+  font-size: var(--text-3xl);
+  font-weight: 900;
+  text-align: center;
+  margin-bottom: var(--sp-2);
+  background: linear-gradient(90deg, var(--c-gold), var(--c-cyan));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  position: relative;
+  z-index: 1;
+}
+
+.galaxy-subtitle {
+  color: var(--c-text-dim);
+  text-align: center;
+  margin-bottom: var(--sp-12);
+  font-size: var(--text-base);
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Planet path ──────────────────────────────────────────────────────────── */
+#planet-path {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-6);
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 500px;
+}
+
+/* Zig-zag layout: odd planets left, even planets right */
+#planet-path .planet-node:nth-child(odd)  { align-self: flex-start; margin-left: 20%; }
+#planet-path .planet-node:nth-child(even) { align-self: flex-end;   margin-right: 20%; }
+
+/* Connector between nodes */
+.planet-connector {
+  width: 2px;
+  height: 40px;
+  background: var(--c-border);
+  margin: calc(-1 * var(--sp-4)) auto;
+  position: relative;
+}
+
+.planet-connector--unlocked {
+  background: linear-gradient(180deg, var(--c-cyan-dim), var(--c-cyan));
+}
+
+/* ── Planet node ──────────────────────────────────────────────────────────── */
+.planet-node {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  cursor: pointer;
+  transition:
+    transform var(--t-base) var(--ease-bounce),
+    box-shadow var(--t-base) var(--ease-smooth);
+  position: relative;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.planet-node__number {
+  font-size: var(--text-2xl);
+  line-height: 1;
+}
+
+.planet-node__name {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.8;
+}
+
+.planet-node__badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  font-size: var(--text-base);
+  line-height: 1;
+}
+
+/* States */
+.planet-node[data-state="locked"] {
+  background: var(--c-surface2);
+  color: var(--c-text-dim);
+  cursor: not-allowed;
+  border: 2px solid var(--c-border);
+}
+
+.planet-node[data-state="available"] {
+  background: radial-gradient(circle at 30% 30%, #7a5aff, #1a0a6e);
+  color: var(--c-text);
+  border: 2px solid rgba(122,90,255,0.5);
+  animation: pulse-glow 2.5s ease-in-out infinite;
+}
+
+.planet-node[data-state="available"]:hover {
+  transform: scale(1.12);
+  box-shadow: 0 0 32px rgba(122,90,255,0.6);
+}
+
+.planet-node[data-state="mastered"] {
+  background: radial-gradient(circle at 30% 30%, #ffe566, #8b6900);
+  color: #0a0a1a;
+  border: 2px solid var(--c-gold);
+  box-shadow: var(--shadow-glow-gold);
+}
+
+.planet-node[data-state="mastered"]:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 32px rgba(255,215,0,0.6);
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(122,90,255,0.5); }
+  50%       { box-shadow: 0 0 0 16px rgba(122,90,255,0); }
+}
+
+/* ── Map legend ───────────────────────────────────────────────────────────── */
+#map-legend {
+  display: flex;
+  gap: var(--sp-6);
+  margin-top: var(--sp-8);
+  flex-wrap: wrap;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-sm);
+  color: var(--c-text-dim);
+}
+
+.legend-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+}
+
+.legend-dot--locked    { background: var(--c-surface2); border: 1px solid var(--c-border); }
+.legend-dot--available { background: #7a5aff; }
+.legend-dot--mastered  { background: var(--c-gold); }
+
+/* ── Galaxy Cup button ────────────────────────────────────────────────────── */
+#galaxy-cup-btn {
+  margin-top: var(--sp-8);
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Hero section (guest landing) ────────────────────────────────────────── */
+.hero {
+  text-align: center;
+  padding: var(--sp-16) var(--sp-6);
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.hero__title {
+  font-size: var(--text-5xl);
+  font-weight: 900;
+  line-height: 1.1;
+  margin-bottom: var(--sp-4);
+  background: linear-gradient(135deg, var(--c-gold) 0%, var(--c-cyan) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero__subtitle {
+  font-size: var(--text-xl);
+  color: var(--c-text-dim);
+  margin-bottom: var(--sp-8);
+  line-height: 1.6;
+}
+
+.hero__cta {
+  display: flex;
+  gap: var(--sp-4);
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-8);
+}
+
+.hero__stats {
+  display: flex;
+  gap: var(--sp-8);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.hero__stat {
+  text-align: center;
+}
+
+.hero__stat-number {
+  font-size: var(--text-3xl);
+  font-weight: 900;
+  color: var(--c-cyan);
+  display: block;
+}
+
+.hero__stat-label {
+  font-size: var(--text-sm);
+  color: var(--c-text-dim);
+}
+
+@media (max-width: 480px) {
+  .hero__title { font-size: var(--text-4xl); }
+  #planet-path .planet-node:nth-child(odd)  { margin-left: 10%; }
+  #planet-path .planet-node:nth-child(even) { margin-right: 10%; }
+}
