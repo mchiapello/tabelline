@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Gioca — MathQuest{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/game.css') }}">
+{% endblock %}
+
+{% block content_attrs %}class="full-width"{% endblock %}
+
+{% block content %}
+<div id="game-container">
+
+  <div id="game-header">
+    <button id="btn-quit" class="btn btn--ghost btn--sm"
+            onclick="window.location.href='/journey'">← Esci</button>
+    <div id="game-mode-label"></div>
+    <div id="game-progress">
+      <div class="progress-bar">
+        <div id="progress-fill"></div>
+      </div>
+      <span id="progress-text">0 / ?</span>
+    </div>
+    <div id="game-timer" hidden>60</div>
+  </div>
+
+  <div id="question-area">
+    <div id="question-display">
+      <span id="q-a">?</span>
+      <span class="q-operator">×</span>
+      <span id="q-b">?</span>
+      <span class="q-eq">=</span>
+      <span id="q-answer-display">?</span>
+    </div>
+    <div id="feedback-area"></div>
+  </div>
+
+  <div id="answer-area">
+    <input type="number" id="answer-input" inputmode="numeric"
+           min="1" max="100" autocomplete="off" placeholder="?" />
+    <div id="numpad">
+      <button class="numpad-key" data-value="7">7</button>
+      <button class="numpad-key" data-value="8">8</button>
+      <button class="numpad-key" data-value="9">9</button>
+      <button class="numpad-key numpad-key--back" data-value="back">⌫</button>
+      <button class="numpad-key" data-value="4">4</button>
+      <button class="numpad-key" data-value="5">5</button>
+      <button class="numpad-key" data-value="6">6</button>
+      <button class="numpad-key numpad-key--confirm" data-value="confirm">✓</button>
+      <button class="numpad-key" data-value="1">1</button>
+      <button class="numpad-key" data-value="2">2</button>
+      <button class="numpad-key" data-value="3">3</button>
+      <button class="numpad-key" data-value="0" style="grid-column: span 1">0</button>
+    </div>
+  </div>
+
+  <div id="session-summary" hidden></div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/journey.js') }}"></script>
+<script src="{{ url_for('static', filename='js/game.js') }}"></script>
+<script>
+  const _GAME_MODE  = {{ mode|tojson }};
+  const _GAME_TABLE = parseInt({{ table|tojson }}, 10);
+  document.addEventListener('DOMContentLoaded', () => {
+    Game.start(_GAME_MODE, _GAME_TABLE);
+  });
+</script>
+{% endblock %}
