@@ -4,6 +4,106 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/journey.css') }}">
+<style>
+  /* ── Module cards section ──────────────────────────────────────────────── */
+  #modules-section {
+    width: 100%;
+    max-width: 560px;
+    margin-top: var(--sp-12);
+    position: relative;
+    z-index: 1;
+  }
+
+  .modules-heading {
+    font-size: var(--text-sm);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--c-text-dim);
+    margin-bottom: var(--sp-4);
+    text-align: center;
+  }
+
+  .module-cards {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-3);
+  }
+
+  .module-card {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    background: var(--c-surface2);
+    border: 1.5px solid var(--c-border);
+    border-radius: var(--r-md);
+    padding: var(--sp-4) var(--sp-5);
+    cursor: pointer;
+    transition: transform var(--t-base) var(--ease-bounce),
+                box-shadow var(--t-base) var(--ease-smooth),
+                border-color var(--t-base);
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .module-card--active {
+    border-color: var(--c-cyan);
+  }
+
+  .module-card--active:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-glow-cyan);
+    border-color: var(--c-cyan);
+  }
+
+  .module-card--locked {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+
+  .module-card__icon {
+    font-size: 2rem;
+    flex-shrink: 0;
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--r-sm);
+    background: var(--c-surface);
+  }
+
+  .module-card--active  .module-card__icon { background: rgba(0,212,255,0.1); }
+  .module-card--locked  .module-card__icon { background: var(--c-surface); }
+
+  .module-card__body { flex: 1; min-width: 0; }
+
+  .module-card__name {
+    font-size: var(--text-base);
+    font-weight: 800;
+    margin-bottom: var(--sp-1);
+  }
+
+  .module-card--active  .module-card__name { color: var(--c-text); }
+  .module-card--locked  .module-card__name { color: var(--c-text-dim); }
+
+  .module-card__desc {
+    font-size: var(--text-sm);
+    color: var(--c-text-dim);
+  }
+
+  .module-card__status {
+    flex-shrink: 0;
+    font-size: var(--text-xs);
+    font-weight: 700;
+    padding: var(--sp-1) var(--sp-3);
+    border-radius: var(--r-full);
+  }
+
+  .status--active  { background: rgba(0,212,255,0.12); color: var(--c-cyan);     border: 1px solid var(--c-cyan-dim); }
+  .status--locked  { background: rgba(136,136,170,0.1); color: var(--c-text-dim); border: 1px solid var(--c-border); }
+  .status--current { background: rgba(255,215,0,0.12);  color: var(--c-gold);     border: 1px solid var(--c-gold-dim); }
+</style>
 {% endblock %}
 
 {% block content_attrs %}class="full-width"{% endblock %}
@@ -36,9 +136,76 @@
       <span>Conquistato</span>
     </div>
   </div>
+
+  <!-- ── Other modules ──────────────────────────────────────────────────── -->
+  <div id="modules-section">
+    <p class="modules-heading">Altri moduli</p>
+    <div class="module-cards" id="module-cards">
+      <!-- Populated by loadModuleCards() below -->
+    </div>
+  </div>
 </section>
 {% endblock %}
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/journey.js') }}"></script>
+<script>
+(async function loadModuleCards() {
+  const container = document.getElementById('module-cards');
+
+  // Always show moltiplicazioni as the "current" module
+  const cards = [
+    {
+      id:          'moltiplicazioni',
+      icon:        '✖️',
+      name:        'Moltiplicazioni',
+      desc:        '9 pianeti · tabelle dal ×2 al ×10',
+      activated:   true,
+      href:        '/journey',
+      isCurrent:   true,
+    }
+  ];
+
+  // Fetch status of other modules from the registry health endpoint
+  try {
+    const health = await fetch('/api/v1/operator/modules/status').then(r => r.json());
+    if (health.addizioni) {
+      cards.push({
+        id:        'addizioni',
+        icon:      '➕',
+        name:      'Addizioni',
+        desc:      health.addizioni.activated
+                     ? '10 livelli · addizioni fino a +10'
+                     : 'Richiede attivazione — chiedi all\'operatore',
+        activated: health.addizioni.activated,
+        href:      health.addizioni.activated ? '/journey/addizioni' : null,
+      });
+    }
+  } catch {
+    // If the endpoint fails, just show moltiplicazioni
+  }
+
+  container.innerHTML = cards.map(card => {
+    const stateClass = card.isCurrent  ? 'status--current'
+                     : card.activated  ? 'status--active'
+                     : 'status--locked';
+    const stateLabel = card.isCurrent  ? '⭐ Attivo'
+                     : card.activated  ? '✓ Attivo'
+                     : '🔒 Non attivo';
+    const cardClass  = card.activated  ? 'module-card--active'
+                     : 'module-card--locked';
+    const tag        = card.href ? 'a' : 'div';
+    const href       = card.href ? `href="${card.href}"` : '';
+
+    return `<${tag} class="module-card ${cardClass}" ${href}>
+      <div class="module-card__icon">${card.icon}</div>
+      <div class="module-card__body">
+        <div class="module-card__name">${card.name}</div>
+        <div class="module-card__desc">${card.desc}</div>
+      </div>
+      <span class="module-card__status ${stateClass}">${stateLabel}</span>
+    </${tag}>`;
+  }).join('');
+})();
+</script>
 {% endblock %}
