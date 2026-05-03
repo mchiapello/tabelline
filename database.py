@@ -159,6 +159,48 @@ def init_db():
         )
     """)
 
+    # ── Addizioni module tables ───────────────────────────────────────────────
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS addi_sessions (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id     INTEGER,
+            session_key TEXT    NOT NULL,
+            mode        TEXT    NOT NULL,
+            level       INTEGER NOT NULL,
+            started_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+            finished_at TEXT,
+            total_q     INTEGER NOT NULL DEFAULT 0,
+            correct_q   INTEGER NOT NULL DEFAULT 0
+        )
+    """)
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS addi_answers (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id  INTEGER NOT NULL REFERENCES addi_sessions(id) ON DELETE CASCADE,
+            addend_a    INTEGER NOT NULL,
+            addend_b    INTEGER NOT NULL,
+            correct_ans INTEGER NOT NULL,
+            user_ans    INTEGER,
+            is_correct  INTEGER NOT NULL DEFAULT 0,
+            response_ms INTEGER,
+            answered_at TEXT    NOT NULL DEFAULT (datetime('now'))
+        )
+    """)
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS addi_boss_battles (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id     INTEGER,
+            session_key TEXT    NOT NULL,
+            level       INTEGER NOT NULL,
+            score_pct   REAL    NOT NULL,
+            passed      INTEGER NOT NULL DEFAULT 0,
+            played_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+        )
+    """)
+
     # ── Legacy italiano / verbi tables (preserved) ────────────────────────────
 
     c.execute("""
