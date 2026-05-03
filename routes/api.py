@@ -251,6 +251,74 @@ def module_manifest(module_id):
     return jsonify(info.get('manifest') or {})
 
 
+# ── Operator endpoints ────────────────────────────────────────────────────────
+
+@api_bp.route('/operator/modules/<module_id>/activate', methods=['POST'])
+def operator_activate_module(module_id):
+    """
+    Activate a non-free module by supplying the plaintext activation token.
+    The token is bcrypt-compared against the hash stored in module_tokens.
+    If the row doesn't exist yet (first activation), the token IS the hash
+    seed — stored directly as the hash so the CLI and API share the same flow.
+    """
+    data  = request.get_json() or {}
+    token = (data.get('token') or '').strip()
+    if not token:
+        return jsonify({'error': 'token_required'}), 400
+
+    from registry import _registry, is_registered
+    if not is_registered(module_id):
+        return jsonify({'error': 'module_not_registered'}), 404
+
+    manifest = (_registry.get(module_id) or {}).get('manifest') or {}
+    if manifest.get('free'):
+        return jsonify({'error': 'free_module_needs_no_token'}), 400
+
+    db  = get_db()
+    row = db.execute(
+        'SELECT id, token_hash, active FROM module_tokens WHERE module_id=?',
+        (module_id,)
+    ).fetchone()
+
+    if not row:
+        return jsonify({'error': 'no_token_issued',
+                        'hint':  'Run scripts/generate_token.py to issue a token first'}), 404
+
+    if not bcrypt.checkpw(token.encode(), row['token_hash'].encode()):
+        return jsonify({'error': 'invalid_token'}), 403
+
+    db.execute('UPDATE module_tokens SET active=1, pending_restart=0 WHERE module_id=?',
+               (module_id,))
+    db.commit()
+    return jsonify({'ok': True, 'module': module_id, 'activated': True})
+
+
+@api_bp.route('/operator/modules/<module_id>/deactivate', methods=['POST'])
+def operator_deactivate_module(module_id):
+    """Deactivate a module (does not delete the token row)."""
+    data  = request.get_json() or {}
+    token = (data.get('token') or '').strip()
+    if not token:
+        return jsonify({'error': 'token_required'}), 400
+
+    db  = get_db()
+    row = db.execute('SELECT token_hash FROM module_tokens WHERE module_id=?',
+                     (module_id,)).fetchone()
+    if not row or not bcrypt.checkpw(token.encode(), row['token_hash'].encode()):
+        return jsonify({'error': 'invalid_token'}), 403
+
+    db.execute('UPDATE module_tokens SET active=0 WHERE module_id=?', (module_id,))
+    db.commit()
+    return jsonify({'ok': True, 'module': module_id, 'activated': False})
+
+
+@api_bp.route('/operator/modules/status')
+def operator_modules_status():
+    """Public status of all registered modules (no auth required)."""
+    from registry import get_health
+    return jsonify(get_health())
+
+
 # ── Reward gateway (used by module routes) ────────────────────────────────────
 
 def apply_reward_event(user_id: int, reward: dict):
