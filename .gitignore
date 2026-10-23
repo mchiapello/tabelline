@@ -8,3 +8,6 @@ venv/
 tabelline.db
 *.db-journal
 .DS_Store
+mathquest.db
+mathquest.db-shm
+mathquest.db-wal
