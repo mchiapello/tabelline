@@ -2,14 +2,14 @@ services:
   - type: web
     name: mathquest
     env: python
+    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn "app:create_app()" --bind 0.0.0.0:$PORT
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
       - key: SECRET_KEY
         generateValue: true
-      - key: DATABASE
-        value: /var/data/mathquest.db
-    disk:
-      name: mathquest-db
-      mountPath: /var/data
-      sizeGB: 1
+      # Free tier has no persistent disk: the SQLite DB resets on each deploy/restart.
+      # For persistence, switch plan to starter, add a disk mounted at /var/data
+      # and set DATABASE=/var/data/mathquest.db.
