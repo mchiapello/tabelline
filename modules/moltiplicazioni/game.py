@@ -56,6 +56,24 @@ def generate_mission_session(table: int, due_facts: list = None) -> list:
     return questions[:20]
 
 
+def generate_custom_session(tables, num_questions: int = 10) -> list:
+    """Free-practice session: one or more tables, any length."""
+    if isinstance(tables, int):
+        tables = [tables]
+    tables = tables or [2]
+    num_questions = max(1, min(num_questions, 100))
+
+    pool = [(t, m) for t in tables for m in range(1, 11)]
+    combos = []
+    while len(combos) < num_questions:
+        chunk = pool[:]
+        random.shuffle(chunk)
+        combos.extend(chunk)
+    combos = combos[:num_questions]
+    return [{'multiplicand': t, 'multiplier': m, 'correct_ans': t * m}
+            for t, m in combos]
+
+
 def generate_speedrun_session(table: int) -> list:
     """Large pool; front-end will stop after 60s."""
     pool = []

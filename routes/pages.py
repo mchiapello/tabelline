@@ -15,9 +15,15 @@ def journey():
 
 @pages_bp.route('/game')
 def game():
-    mode  = request.args.get('mode', 'explorer')
-    table = request.args.get('table', '2')
-    return render_template('game.html', mode=mode, table=table)
+    mode       = request.args.get('mode', 'explorer')
+    table      = request.args.get('table', '2')
+    tables_raw = request.args.get('tables', '')
+    tables     = [int(t) for t in tables_raw.split(',') if t.strip().isdigit()] or [int(table)]
+    num        = request.args.get('num', '10')
+    timer      = request.args.get('timer', '0')
+    facilitato = request.args.get('facilitato', '0')
+    return render_template('game.html', mode=mode, table=table, tables=tables,
+                            num=num, timer=timer, facilitato=facilitato)
 
 
 @pages_bp.route('/profile')

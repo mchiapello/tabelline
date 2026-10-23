@@ -4,7 +4,8 @@ from auth import optional_token
 from . import MANIFEST, BADGES
 from .game import (generate_explorer_session, generate_boss_battle,
                    generate_mission_session, generate_speedrun_session,
-                   generate_galaxy_cup, score_session, build_reward_event,
+                   generate_galaxy_cup, generate_custom_session,
+                   score_session, build_reward_event,
                    PLANET_ORDER)
 
 
@@ -40,6 +41,12 @@ def register(bp):
         elif mode == 'galaxy_cup':
             unlocked = _get_unlocked(db, user_id, session_key)
             questions = generate_galaxy_cup(unlocked)
+        elif mode == 'custom':
+            tables_raw    = data.get('tables')
+            tables        = [int(t) for t in tables_raw] if tables_raw else [table]
+            num_questions = int(data.get('num_questions') or 10)
+            questions     = generate_custom_session(tables, num_questions)
+            table         = tables[0]
         else:
             return jsonify({'error': 'invalid_mode'}), 400
 
