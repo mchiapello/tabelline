@@ -183,6 +183,13 @@
   z-index: 1;
 }
 
+#custom-mode-btn {
+  margin-top: var(--sp-4);
+  margin-bottom: var(--sp-6);
+  position: relative;
+  z-index: 1;
+}
+
 /* ── Hero section (guest landing) ────────────────────────────────────────── */
 .hero {
   text-align: center;

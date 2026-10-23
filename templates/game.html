@@ -24,6 +24,8 @@
     <div id="game-timer" hidden>60</div>
   </div>
 
+  <div id="facilitato-panel" hidden></div>
+
   <div id="question-area">
     <div id="question-display">
       <span id="q-a">?</span>
@@ -38,6 +40,7 @@
   <div id="answer-area">
     <input type="number" id="answer-input" inputmode="numeric"
            min="1" max="100" autocomplete="off" placeholder="?" />
+    <button id="btn-continue" class="btn btn--primary" hidden>Continua →</button>
     <div id="numpad">
       <button class="numpad-key" data-value="7">7</button>
       <button class="numpad-key" data-value="8">8</button>
@@ -63,10 +66,19 @@
 <script src="{{ url_for('static', filename='js/journey.js') }}"></script>
 <script src="{{ url_for('static', filename='js/game.js') }}"></script>
 <script>
-  const _GAME_MODE  = {{ mode|tojson }};
-  const _GAME_TABLE = parseInt({{ table|tojson }}, 10);
+  const _GAME_MODE       = {{ mode|tojson }};
+  const _GAME_TABLE      = parseInt({{ table|tojson }}, 10);
+  const _GAME_TABLES     = {{ tables|tojson }};
+  const _GAME_NUM        = parseInt({{ num|tojson }}, 10);
+  const _GAME_TIMER      = parseInt({{ timer|tojson }}, 10);
+  const _GAME_FACILITATO = {{ facilitato|tojson }} === '1';
   document.addEventListener('DOMContentLoaded', () => {
-    Game.start(_GAME_MODE, _GAME_TABLE);
+    Game.start(_GAME_MODE, _GAME_TABLE, {
+      tables:       _GAME_TABLES,
+      numQuestions: _GAME_NUM,
+      timerSec:     _GAME_TIMER,
+      facilitato:   _GAME_FACILITATO,
+    });
   });
 </script>
 {% endblock %}

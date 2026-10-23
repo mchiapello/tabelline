@@ -5,6 +5,7 @@ const Game = (() => {
         speedrun:     '⚡ Speed Run',
         boss_battle:  '⚔️ Boss Battle',
         galaxy_cup:   '🏆 Galaxy Cup',
+        custom:       '🎯 Allenamento libero',
     };
 
     let state = {
@@ -15,9 +16,11 @@ const Game = (() => {
         startTime: null, questionStartTime: null,
         timerId: null,
         finished: false,
+        timerSec: 0, facilitato: false, numQuestions: 10, tables: [],
+        questionTimerId: null, awaitingContinue: false,
     };
 
-    async function start(mode, table) {
+    async function start(mode, table, opts = {}) {
         const gs = Guest.load();
         state = {
             mode, table,
@@ -26,6 +29,11 @@ const Game = (() => {
             questions: [], currentIdx: 0, answers: [],
             startTime: Date.now(), questionStartTime: null,
             timerId: null, finished: false,
+            timerSec:     opts.timerSec || 0,
+            facilitato:   !!opts.facilitato,
+            numQuestions: opts.numQuestions || 10,
+            tables:       (opts.tables && opts.tables.length) ? opts.tables.map(Number) : [table],
+            questionTimerId: null, awaitingContinue: false,
         };
 
         // Persist session key for guest continuity
@@ -37,9 +45,13 @@ const Game = (() => {
             MODE_LABELS[mode] || mode;
 
         try {
-            const data = await API.post('/modules/moltiplicazioni/session/start', {
-                mode, table, session_key: state.sessionKey
-            });
+            const payload = { mode, table, session_key: state.sessionKey };
+            if (mode === 'custom') {
+                payload.num_questions = state.numQuestions;
+                payload.tables = state.tables;
+            }
+
+            const data = await API.post('/modules/moltiplicazioni/session/start', payload);
             state.sessionId = data.session_id;
             state.questions = data.questions;
 
@@ -47,9 +59,35 @@ const Game = (() => {
                 startSpeedRunTimer(60);
             }
 
+            renderFacilitatoPanel();
             renderQuestion();
         } catch (err) {
             showError('Impossibile avviare la sessione. Riprova.');
+        }
+    }
+
+    function renderFacilitatoPanel() {
+        const panel = document.getElementById('facilitato-panel');
+        if (!panel) return;
+        if (state.mode === 'custom' && state.facilitato) {
+            const blocks = state.tables.map(t => {
+                const rows = Array.from({ length: 10 }, (_, i) => i + 1)
+                    .map(m => `<div class="facilitato-row">${t} × ${m} = ${t * m}</div>`)
+                    .join('');
+                const label = state.tables.length > 1 ? `Tabella del ${t}` : `📋 Tabella del ${t}`;
+                return `<div class="facilitato-block">
+                    ${state.tables.length > 1 ? `<div class="facilitato-subtitle">${label}</div>` : ''}
+                    <div class="facilitato-rows">${rows}</div>
+                </div>`;
+            }).join('');
+
+            panel.innerHTML = state.tables.length > 1
+                ? `<div class="facilitato-title">📋 Tabelline</div>${blocks}`
+                : blocks;
+            panel.hidden = false;
+        } else {
+            panel.hidden = true;
+            panel.innerHTML = '';
         }
     }
 
@@ -67,8 +105,14 @@ const Game = (() => {
         ansEl.textContent = '?';
         ansEl.className   = '';
 
-        document.getElementById('answer-input').value = '';
+        const inputEl = document.getElementById('answer-input');
+        inputEl.value    = '';
+        inputEl.disabled = false;
         document.getElementById('feedback-area').innerHTML = '';
+
+        state.awaitingContinue = false;
+        const continueBtn = document.getElementById('btn-continue');
+        if (continueBtn) continueBtn.hidden = true;
 
         const total = state.questions.length;
         const done  = state.currentIdx;
@@ -79,17 +123,61 @@ const Game = (() => {
 
         state.questionStartTime = Date.now();
 
+        if (state.mode === 'custom' && state.timerSec > 0) {
+            startQuestionTimer(state.timerSec);
+        }
+
         // Auto-focus input (desktop); don't on mobile to avoid keyboard pop
         if (window.innerWidth > 640) {
-            document.getElementById('answer-input').focus();
+            inputEl.focus();
         }
     }
 
-    async function submitAnswer(userAnswer) {
-        if (state.finished || state.currentIdx >= state.questions.length) return;
+    function startQuestionTimer(seconds) {
+        const el = document.getElementById('game-timer');
+        el.hidden = false;
+        el.classList.remove('timer--urgent');
+        let remaining = seconds;
+        el.textContent = remaining;
 
-        const q           = state.questions[state.currentIdx];
-        const response_ms = Date.now() - state.questionStartTime;
+        if (state.questionTimerId) clearInterval(state.questionTimerId);
+        state.questionTimerId = setInterval(() => {
+            remaining--;
+            el.textContent = remaining;
+            if (remaining <= 1) el.classList.add('timer--urgent');
+            if (remaining <= 0) {
+                clearInterval(state.questionTimerId);
+                state.questionTimerId = null;
+                handleTimeout();
+            }
+        }, 1000);
+    }
+
+    function clearQuestionTimer() {
+        if (state.questionTimerId) {
+            clearInterval(state.questionTimerId);
+            state.questionTimerId = null;
+        }
+        if (state.mode === 'custom') {
+            document.getElementById('game-timer').hidden = true;
+        }
+    }
+
+    function handleTimeout() {
+        if (state.finished || state.awaitingContinue ||
+            state.currentIdx >= state.questions.length) return;
+        submitAnswer(null);
+    }
+
+    async function submitAnswer(userAnswer) {
+        if (state.finished || state.currentIdx >= state.questions.length ||
+            state.awaitingContinue) return;
+
+        clearQuestionTimer();
+
+        const isTimeout    = userAnswer === null;
+        const q            = state.questions[state.currentIdx];
+        const response_ms  = Date.now() - state.questionStartTime;
 
         // Optimistic UI: disable input while request is in-flight
         const inputEl = document.getElementById('answer-input');
@@ -111,11 +199,26 @@ const Game = (() => {
         }
 
         state.answers.push({ is_correct: result.correct, response_ms });
-        showFeedback(result);
+        showFeedback(result, isTimeout);
 
         // Nav coin animation
         if (result.correct) {
             Rewards.playCorrect(result.coins_earned, result.xp_earned);
+        }
+
+        // Custom mode: on a wrong/timed-out answer, wait for an explicit
+        // "Continua" press so the learner has time to reflect before moving on.
+        if (state.mode === 'custom' && !result.correct) {
+            state.awaitingContinue = true;
+            const continueBtn = document.getElementById('btn-continue');
+            continueBtn.hidden = false;
+            continueBtn.onclick = () => {
+                state.awaitingContinue = false;
+                inputEl.disabled = false;
+                state.currentIdx++;
+                renderQuestion();
+            };
+            return;
         }
 
         const delay = result.correct ? 1200 : 2500;
@@ -126,7 +229,7 @@ const Game = (() => {
         }, delay);
     }
 
-    function showFeedback(result) {
+    function showFeedback(result, isTimeout = false) {
         const feedbackEl = document.getElementById('feedback-area');
         const ansEl      = document.getElementById('q-answer-display');
         ansEl.textContent = result.correct_ans;
@@ -136,8 +239,9 @@ const Game = (() => {
                 `<span class="feedback feedback--correct">✓</span>`;
             ansEl.className = 'answer--correct';
         } else {
+            const label = isTimeout ? '⏱ Tempo scaduto' : '✗';
             feedbackEl.innerHTML =
-                `<span class="feedback feedback--wrong">✗</span>`;
+                `<span class="feedback feedback--wrong">${label}</span>`;
             ansEl.className = 'answer--wrong';
             const area = document.getElementById('question-area');
             area.classList.add('shake');
@@ -171,6 +275,7 @@ const Game = (() => {
             clearInterval(state.timerId);
             state.timerId = null;
         }
+        clearQuestionTimer();
 
         // Hide game UI
         document.getElementById('question-area').hidden = true;
@@ -237,7 +342,10 @@ const Game = (() => {
                     🗺️ Torna alla mappa
                 </button>
                 <button class="btn btn--secondary"
-                    onclick="Game.start('${state.mode}', ${state.table})">
+                    onclick="Game.start('${state.mode}', ${state.table}, {
+                        timerSec: ${state.timerSec}, facilitato: ${state.facilitato},
+                        numQuestions: ${state.numQuestions}, tables: ${JSON.stringify(state.tables)}
+                    })">
                     🔄 Gioca ancora
                 </button>
             </div>`;

@@ -135,6 +135,62 @@
             if (e.target.id === 'modal-overlay') close();
           };
         }
+
+        if (type === 'custom-setup') {
+          const tableCheckboxes = Array.from({ length: 10 }, (_, i) => i + 1)
+            .map(n => `
+              <label class="table-checkbox">
+                <input type="checkbox" class="custom-table-cb" value="${n}" ${n === 2 ? 'checked' : ''}>
+                <span>${n}</span>
+              </label>`)
+            .join('');
+
+          root.innerHTML = `
+            <div class="modal-overlay" id="modal-overlay">
+              <div class="modal-box">
+                <button class="modal-box__close" id="modal-close">✕</button>
+                <div class="modal-title">🎯 Allenamento libero</div>
+                <p style="color:var(--c-text-dim);margin-bottom:var(--sp-4)">
+                  Scegli tabellina, numero di domande e timer
+                </p>
+                <div class="form-field">
+                  <label>Tabelline (puoi sceglierne più di una)</label>
+                  <div class="checkbox-grid">${tableCheckboxes}</div>
+                </div>
+                <div class="form-field">
+                  <label for="custom-num">Numero di domande</label>
+                  <select id="custom-num">
+                    <option value="5">5</option>
+                    <option value="10" selected>10</option>
+                    <option value="15">15</option>
+                    <option value="20">20</option>
+                    <option value="30">30</option>
+                  </select>
+                </div>
+                <div class="form-field">
+                  <label for="custom-timer">Timer per domanda</label>
+                  <select id="custom-timer">
+                    <option value="0" selected>Nessun timer</option>
+                    <option value="10">10 secondi</option>
+                    <option value="5">5 secondi</option>
+                    <option value="3">3 secondi</option>
+                  </select>
+                </div>
+                <label class="form-checkbox">
+                  <input type="checkbox" id="custom-facilitato">
+                  <span>🧩 Modalità Facilitato — mostra la tabellina completa</span>
+                </label>
+                <div class="modal-actions">
+                  <button class="btn btn--primary" onclick="Modal.startCustomGame()">▶ Inizia</button>
+                </div>
+              </div>
+            </div>`;
+
+          document.getElementById('modal-close').onclick = close;
+          document.getElementById('modal-overlay').onclick = (e) => {
+            if (e.target.id === 'modal-overlay') close();
+          };
+        }
       }
 
       function close() {
@@ -148,7 +204,20 @@
         window.location.href = `/game?mode=${mode}&table=${table}`;
       }
 
-      return { open, close, startGame };
+      function startCustomGame() {
+        const checked = Array.from(document.querySelectorAll('.custom-table-cb:checked'))
+          .map(cb => cb.value);
+        const tables     = checked.length ? checked : ['2'];
+        const num        = document.getElementById('custom-num').value;
+        const timer      = document.getElementById('custom-timer').value;
+        const facilitato = document.getElementById('custom-facilitato').checked ? '1' : '0';
+        close();
+        window.location.href =
+          `/game?mode=custom&table=${tables[0]}&tables=${tables.join(',')}` +
+          `&num=${num}&timer=${timer}&facilitato=${facilitato}`;
+      }
+
+      return { open, close, startGame, startCustomGame };
     })();
   </script>
 

@@ -219,6 +219,79 @@
   margin-top: var(--sp-6);
 }
 
+/* ── Form fields (modal setup forms) ─────────────────────────────────────── */
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin-bottom: var(--sp-4);
+}
+
+.form-field label {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--c-text-dim);
+}
+
+.form-field select {
+  min-height: var(--touch-min);
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-sm);
+  border: 1.5px solid var(--c-border);
+  background: var(--c-surface2);
+  color: var(--c-text);
+  font-family: var(--font-main);
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.form-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--text-sm);
+  color: var(--c-text);
+  cursor: pointer;
+  margin-bottom: var(--sp-2);
+}
+
+.form-checkbox input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  accent-color: var(--c-cyan);
+}
+
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--sp-2);
+}
+
+.table-checkbox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-2) 0;
+  border: 1.5px solid var(--c-border);
+  border-radius: var(--r-sm);
+  background: var(--c-surface2);
+  cursor: pointer;
+  font-weight: 700;
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+
+.table-checkbox:has(input:checked) {
+  border-color: var(--c-cyan);
+  background: rgba(0,212,255,0.1);
+  color: var(--c-cyan);
+}
+
+.table-checkbox input[type="checkbox"] {
+  accent-color: var(--c-cyan);
+}
+
 @keyframes modal-bg-in {
   from { opacity: 0; }
   to   { opacity: 1; }
